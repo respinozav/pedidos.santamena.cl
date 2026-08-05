@@ -293,6 +293,20 @@
 			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Compilar dashboard comercial",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar dashboard final",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }
