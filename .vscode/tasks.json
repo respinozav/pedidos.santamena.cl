@@ -307,6 +307,20 @@
 			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Validar códigos únicos de productos",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m py_compile backend\\app\\schemas\\dto.py backend\\app\\controllers\\routes.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API códigos únicos",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }

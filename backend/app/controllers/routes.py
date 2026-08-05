@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import AdminUser, DatabaseSession
@@ -148,6 +148,9 @@ def list_admin_products(database: DatabaseSession, _: AdminUser) -> list[Product
 
 @router.post("/productos", response_model=ProductOutput, status_code=status.HTTP_201_CREATED, tags=["Productos"])
 def create_product(payload: ProductInput, database: DatabaseSession, _: AdminUser) -> Producto:
+    duplicate = database.scalar(select(Producto.id).where(func.lower(Producto.codigo) == payload.codigo.lower()))
+    if duplicate:
+        raise HTTPException(status.HTTP_409_CONFLICT, "El código de producto ya existe")
     entity = Repository(Producto, database).add(Producto(**payload.model_dump()))
     database.commit()
     return entity
@@ -158,6 +161,9 @@ def update_product(product_id: UUID, payload: ProductInput, database: DatabaseSe
     entity = Repository(Producto, database).get(product_id)
     if not entity or entity.eliminado_at:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Producto no encontrado")
+    duplicate = database.scalar(select(Producto.id).where(func.lower(Producto.codigo) == payload.codigo.lower(), Producto.id != product_id))
+    if duplicate:
+        raise HTTPException(status.HTTP_409_CONFLICT, "El código de producto ya existe")
     Repository(Producto, database).update(entity, payload.model_dump())
     database.commit()
     return entity

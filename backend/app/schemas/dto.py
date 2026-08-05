@@ -39,6 +39,11 @@ class ProductInput(BaseModel):
     def normalize_name(cls, value: str) -> str:
         return value.strip().upper()
 
+    @field_validator("codigo")
+    @classmethod
+    def normalize_code(cls, value: str) -> str:
+        return value.strip().upper()
+
     @field_validator("imagen_url")
     @classmethod
     def validate_jpeg_base64(cls, value: str | None) -> str | None:
