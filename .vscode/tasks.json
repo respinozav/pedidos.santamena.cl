@@ -1,0 +1,298 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Iniciar API Santa Mena",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+			"args": [
+				"-m",
+				"uvicorn",
+				"app.main:app",
+				"--host",
+				"127.0.0.1",
+				"--port",
+				"8000"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Iniciar API Santa Mena Backend",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API Santa Mena Direcciones",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar filtros de productos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe",
+			"args": [
+				"/d",
+				"/c",
+				"npm.cmd --prefix frontend run build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar portal de pedidos cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe",
+			"args": [
+				"/d",
+				"/c",
+				"npm.cmd --prefix frontend run build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API portal cliente",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API portal cliente",
+			"type": "shell",
+			"command": "$api = Invoke-RestMethod http://127.0.0.1:8000/api/openapi.json; if ($api.paths.PSObject.Properties.Name -contains '/api/clientes/{customer_id}/pedidos/historicos') { Write-Output 'Endpoint de historial publicado' } else { throw 'No se encontró el endpoint de historial' }; Invoke-RestMethod http://127.0.0.1:8000/api/health | ConvertTo-Json -Compress",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar filtros cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe",
+			"args": [
+				"/d",
+				"/c",
+				"npm.cmd --prefix frontend run build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar historial de pedidos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe",
+			"args": [
+				"/d",
+				"/c",
+				"npm.cmd --prefix frontend run build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API fecha pedidos",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar historial responsive",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe",
+			"args": [
+				"/d",
+				"/c",
+				"npm.cmd --prefix frontend run build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Migrar estados de pedidos",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic upgrade head",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Aplicar estados de pedidos",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic upgrade head",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Migrar estados de pedidos (backend)",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic upgrade head",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verificar revisión Alembic",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic current",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar frontend",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verificar estados y FK de pedidos",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -c \"from sqlalchemy import text; from app.core.database import engine; connection = engine.connect(); states = connection.execute(text('SELECT nombre FROM estados ORDER BY nombre')).scalars().all(); nullable = connection.execute(text(\\\"SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'pedidos' AND column_name = 'estado_id'\\\")).scalar_one(); foreign_key = connection.execute(text(\\\"SELECT count(*) FROM information_schema.table_constraints WHERE table_schema = current_schema() AND table_name = 'pedidos' AND constraint_name = 'fk_pedidos_estado_id' AND constraint_type = 'FOREIGN KEY'\\\")).scalar_one(); print('estados=' + ','.join(states)); print('estado_id_nullable=' + nullable); print('estado_id_fk=' + str(foreign_key == 1)); connection.close()\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verificar estados y FK de pedidos (corregido)",
+			"type": "shell",
+			"command": "Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -c 'from sqlalchemy import text; from app.core.database import engine; connection = engine.connect(); states = connection.execute(text(\"SELECT nombre FROM estados ORDER BY nombre\")).scalars().all(); nullable = connection.execute(text(\"SELECT is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = $$pedidos$$ AND column_name = $$estado_id$$\")).scalar_one(); foreign_key = connection.execute(text(\"SELECT count(*) FROM information_schema.table_constraints WHERE table_schema = current_schema() AND table_name = $$pedidos$$ AND constraint_name = $$fk_pedidos_estado_id$$ AND constraint_type = $$FOREIGN KEY$$\")).scalar_one(); print(\"estados=\" + \",\".join(states)); print(\"estado_id_nullable=\" + nullable); print(\"estado_id_fk=\" + str(foreign_key == 1)); connection.close()'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API con CORS actualizado",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar filtros del historial",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar filtros de historial finales",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar API de pedidos administrativos",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m py_compile backend\\app\\schemas\\dto.py backend\\app\\services\\ordering.py backend\\app\\controllers\\routes.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar pedidos administrativos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API pedidos administrativos",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar vista administrativa de pedidos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar cambios de estado",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m py_compile backend\\app\\services\\ordering.py backend\\app\\controllers\\routes.py; C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API cambios de estado",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar confirmación de estados",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar dirección en pedidos",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m py_compile backend\\app\\models\\entities.py backend\\app\\schemas\\dto.py backend\\app\\services\\ordering.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Instalar generador PDF",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend install jspdf\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar exportación PDF",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m py_compile backend\\app\\models\\entities.py backend\\app\\schemas\\dto.py backend\\app\\services\\ordering.py; C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API dirección en PDF",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar marca Santa Mena",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar interfaz con acentos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar aviso de estado",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar aviso dentro del modal",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar mensajes del modal",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
