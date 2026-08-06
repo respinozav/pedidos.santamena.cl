@@ -1,18 +1,21 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import AdminUser, DatabaseSession
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models.entities import Categoria, Cliente, Direccion, Estado, Producto, Rol, Usuario
+from app.models.entities import Categoria, Cliente, Credito, Direccion, Estado, Producto, Rol, Usuario
 from app.repositories.base import Repository
 from app.schemas.dto import (
     AddressInput,
     AddressOutput,
     CategoryInput,
     CategoryOutput,
+    CreditOutput,
+    CreditPaymentInput,
     CustomerAccessRequest,
     CustomerInput,
     CustomerOutput,
@@ -22,6 +25,7 @@ from app.schemas.dto import (
     OrderStatusUpdate,
     ProductInput,
     ProductOutput,
+    ProductPage,
     RoleOutput,
     TokenOutput,
     UserCreate,
@@ -30,6 +34,7 @@ from app.schemas.dto import (
     UserUpdate,
 )
 from app.services.ordering import CustomerAccessService, OrderService
+from app.services.pricing import customer_product_price
 
 router = APIRouter(prefix="/api")
 
@@ -123,27 +128,51 @@ def delete_category(category_id: UUID, database: DatabaseSession, _: AdminUser) 
     database.commit()
 
 
-@router.get("/productos", response_model=list[ProductOutput], tags=["Productos"])
+@router.get("/productos", response_model=ProductPage, tags=["Productos"])
 def list_products(
     database: DatabaseSession,
     category_id: UUID | None = None,
     search: str | None = Query(default=None, max_length=180),
     customer_id: UUID | None = None,
-) -> list[ProductOutput]:
-    statement = select(Producto).where(Producto.eliminado_at.is_(None), Producto.activo.is_(True))
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=10),
+) -> ProductPage:
+    statement = select(Producto).options(selectinload(Producto.categoria)).where(Producto.eliminado_at.is_(None), Producto.activo.is_(True))
     if category_id:
         statement = statement.where(Producto.categoria_id == category_id)
     if search:
         statement = statement.where(Producto.nombre.ilike(f"%{search}%"))
     customer = database.get(Cliente, customer_id) if customer_id else None
-    multiplier = 1 + (customer.porcentaje / 100) if customer else None
-    return [ProductOutput.model_validate(product, from_attributes=True).model_copy(update={"precio_cliente": product.precio * multiplier if multiplier else None}) for product in database.scalars(statement.order_by(Producto.nombre))]
+    total = database.scalar(select(func.count()).select_from(statement.subquery())) or 0
+    products = database.scalars(statement.order_by(Producto.nombre).offset((page - 1) * page_size).limit(page_size))
+    return ProductPage(
+        items=[ProductOutput.model_validate(product, from_attributes=True).model_copy(update={"precio_cliente": customer_product_price(product, customer) if customer else None}) for product in products],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
-@router.get("/admin/productos", response_model=list[ProductOutput], tags=["Productos"])
-def list_admin_products(database: DatabaseSession, _: AdminUser) -> list[Producto]:
-    statement = select(Producto).where(Producto.eliminado_at.is_(None)).order_by(Producto.nombre)
-    return list(database.scalars(statement))
+@router.get("/admin/productos", response_model=ProductPage, tags=["Productos"])
+def list_admin_products(
+    database: DatabaseSession,
+    _: AdminUser,
+    category_id: UUID | None = None,
+    search: str | None = Query(default=None, max_length=180),
+    stock_lt: int | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=10),
+) -> ProductPage:
+    statement = select(Producto).where(Producto.eliminado_at.is_(None))
+    if category_id:
+        statement = statement.where(Producto.categoria_id == category_id)
+    if search:
+        statement = statement.where(Producto.nombre.ilike(f"%{search}%"))
+    if stock_lt is not None:
+        statement = statement.where(Producto.cantidad < stock_lt)
+    total = database.scalar(select(func.count()).select_from(statement.subquery())) or 0
+    products = database.scalars(statement.order_by(Producto.nombre).offset((page - 1) * page_size).limit(page_size))
+    return ProductPage(items=list(products), total=total, page=page, page_size=page_size)
 
 
 @router.post("/productos", response_model=ProductOutput, status_code=status.HTTP_201_CREATED, tags=["Productos"])
@@ -254,6 +283,42 @@ def list_orders(database: DatabaseSession, _: AdminUser) -> list[object]:
     return OrderService(database).list_all()
 
 
+@router.get("/pedidos/{order_id}/pdf", tags=["Pedidos"])
+def order_pdf(order_id: UUID, database: DatabaseSession, _: AdminUser) -> Response:
+    content = OrderService(database).pdf(order_id)
+    code = str(order_id).split("-")[0].upper()
+    return Response(content=content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="pedido-{code}.pdf"'})
+
+
+@router.get("/creditos", response_model=list[CreditOutput], tags=["Créditos"])
+def list_credits(database: DatabaseSession, _: AdminUser, pagado: bool = False) -> list[Credito]:
+    statement = (
+        select(Credito)
+        .options(selectinload(Credito.cliente), selectinload(Credito.pedido))
+        .where(Credito.pagado.is_(pagado))
+        .order_by(Credito.fecha_vencimiento.desc())
+    )
+    return list(database.scalars(statement))
+
+
+@router.patch("/creditos/{credit_id}/pago", response_model=CreditOutput, tags=["Créditos"])
+def pay_credit(credit_id: UUID, payload: CreditPaymentInput, database: DatabaseSession, _: AdminUser) -> Credito:
+    credit = database.scalar(
+        select(Credito)
+        .options(selectinload(Credito.cliente), selectinload(Credito.pedido))
+        .where(Credito.id == credit_id)
+    )
+    if not credit:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Crédito no encontrado")
+    if credit.pagado:
+        raise HTTPException(status.HTTP_409_CONFLICT, "El crédito ya está pagado")
+    credit.pagado = True
+    credit.fecha_pago = datetime.combine(payload.fecha_pago, datetime.min.time(), tzinfo=UTC)
+    database.commit()
+    database.refresh(credit)
+    return credit
+
+
 @router.get("/estados", response_model=list[OrderStateOutput], tags=["Pedidos"])
 def list_order_states(database: DatabaseSession, _: AdminUser) -> list[Estado]:
     return list(database.scalars(select(Estado).where(Estado.activo.is_(True)).order_by(Estado.nombre)))
@@ -261,4 +326,4 @@ def list_order_states(database: DatabaseSession, _: AdminUser) -> list[Estado]:
 
 @router.patch("/pedidos/{order_id}/estado", response_model=OrderOutput, tags=["Pedidos"])
 def update_order_status(order_id: UUID, payload: OrderStatusUpdate, database: DatabaseSession, _: AdminUser) -> object:
-    return OrderService(database).change_status(order_id, payload.estado_id)
+    return OrderService(database).change_status(order_id, payload.estado_id, payload.pagado, payload.dias_credito)

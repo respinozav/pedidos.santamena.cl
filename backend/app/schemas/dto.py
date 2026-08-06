@@ -1,5 +1,5 @@
 import base64
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -18,6 +18,8 @@ class Page(BaseModel):
 
 class CategoryInput(BaseModel):
     nombre: str = Field(min_length=2, max_length=120)
+    usa_porcentaje_cliente: bool = True
+    porcentaje: Decimal = Field(default=0, ge=0, le=100, max_digits=5, decimal_places=2)
     activo: bool = True
 
 
@@ -30,7 +32,7 @@ class ProductInput(BaseModel):
     codigo: str = Field(min_length=1, max_length=50)
     nombre: str = Field(min_length=2, max_length=180)
     precio: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
-    cantidad: int = Field(ge=0)
+    cantidad: int
     imagen_url: str | None = Field(default=None, max_length=7_000_000)
     activo: bool = True
 
@@ -63,6 +65,13 @@ class ProductInput(BaseModel):
 class ProductOutput(ProductInput, ORMModel):
     id: UUID
     precio_cliente: Decimal | None = None
+
+
+class ProductPage(BaseModel):
+    items: list[ProductOutput]
+    total: int
+    page: int
+    page_size: int
 
 
 class AddressInput(BaseModel):
@@ -193,3 +202,34 @@ class OrderOutput(ORMModel):
 
 class OrderStatusUpdate(BaseModel):
     estado_id: UUID
+    pagado: bool | None = None
+    dias_credito: int | None = Field(default=None, ge=1, le=365)
+
+
+class CreditCustomerOutput(ORMModel):
+    id: UUID
+    rut: str | None
+    nombre: str | None
+    celular: str | None
+
+
+class CreditOrderOutput(ORMModel):
+    id: UUID
+    total: Decimal
+
+
+class CreditOutput(ORMModel):
+    id: UUID
+    cliente_id: UUID
+    pedido_id: UUID
+    dias_credito: int
+    fecha_entrega: datetime
+    fecha_vencimiento: datetime
+    pagado: bool
+    fecha_pago: datetime | None
+    cliente: CreditCustomerOutput
+    pedido: CreditOrderOutput
+
+
+class CreditPaymentInput(BaseModel):
+    fecha_pago: date

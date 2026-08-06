@@ -54,6 +54,8 @@ class Categoria(AuditMixin, Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    usa_porcentaje_cliente: Mapped[bool] = mapped_column(Boolean, default=True)
+    porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     productos: Mapped[list["Producto"]] = relationship(back_populates="categoria")
@@ -89,6 +91,7 @@ class Cliente(AuditMixin, Base):
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     direcciones: Mapped[list["Direccion"]] = relationship(back_populates="cliente")
     pedidos: Mapped[list["Pedido"]] = relationship(back_populates="cliente")
+    creditos: Mapped[list["Credito"]] = relationship(back_populates="cliente")
 
 
 class Direccion(AuditMixin, Base):
@@ -117,6 +120,22 @@ class Pedido(AuditMixin, Base):
     direccion: Mapped[Direccion] = relationship()
     estado: Mapped[Estado] = relationship(back_populates="pedidos")
     detalles: Mapped[list["DetallePedido"]] = relationship(back_populates="pedido", cascade="all, delete-orphan")
+    credito: Mapped["Credito | None"] = relationship(back_populates="pedido", uselist=False)
+
+
+class Credito(AuditMixin, Base):
+    __tablename__ = "creditos"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clientes.id"), index=True)
+    pedido_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pedidos.id"), unique=True, index=True)
+    dias_credito: Mapped[int] = mapped_column()
+    fecha_entrega: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    fecha_vencimiento: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    pagado: Mapped[bool] = mapped_column(Boolean, default=False)
+    fecha_pago: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cliente: Mapped[Cliente] = relationship(back_populates="creditos")
+    pedido: Mapped[Pedido] = relationship(back_populates="credito")
 
 
 class DetallePedido(AuditMixin, Base):

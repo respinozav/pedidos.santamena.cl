@@ -12,7 +12,6 @@
     "@vitejs/plugin-react": "latest",
     "axios": "latest",
     "bootstrap": "^5.3.3",
-    "jspdf": "^4.2.1",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,7 +1,6 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
-import { jsPDF } from "jspdf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 import { api, setAdminToken } from "./services/api";
@@ -11,6 +10,10 @@ const money = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP
 function productImageSource(imageBase64) {
   if (!imageBase64) return null;
   return imageBase64.startsWith("http") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+}
+
+function BrandMark() {
+  return <span className="brand-mark"><img src="/santa-mena-logo.jpg" alt="Santa Mena" /></span>;
 }
 
 function Access({ onAccess, onAdminAccess }) {
@@ -27,8 +30,8 @@ function Access({ onAccess, onAdminAccess }) {
     }
   }
 
-  return <main className="access-shell"><section className="access-brand"><div className="brand-mark">S</div><p className="eyebrow text-white-50">SANTA MENA</p><h1>Pedidos simples.<br />Despachos claros.</h1><p>Haz tu pedido y revisa su estado desde un solo lugar.</p></section><form className="access-form" onSubmit={submit}>
-    <div className="access-form-heading"><div className="brand-mark brand-mark-mobile">S</div><p className="eyebrow">PORTAL DE CLIENTES</p><h2>Realiza tu pedido</h2><p>Ingresa con tu RUT, celular o razón social.</p></div>
+  return <main className="access-shell"><section className="access-brand"><h1>Pedidos simples.<br />Despachos claros.</h1><p>Haz tu pedido y revisa su estado desde un solo lugar.</p></section><form className="access-form" onSubmit={submit}>
+    <div className="access-form-heading"><BrandMark /><p className="eyebrow">PORTAL DE CLIENTES</p><h2>Realiza tu pedido</h2><p>Ingresa con tu RUT, celular o razón social.</p></div>
     <label htmlFor="identifier" className="form-label">Identificador</label>
     <input id="identifier" className="form-control form-control-lg" placeholder="Ej. 12.345.678-9" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required />
     {error && <p className="text-danger mt-3 mb-0">{error}</p>}
@@ -58,8 +61,8 @@ function AdminAccess({ onLogin, onCustomerAccess }) {
     }
   }
 
-  return <main className="access-shell"><section className="access-brand"><div className="brand-mark">S</div><p className="eyebrow text-white-50">SANTA MENA</p><h1>Gestiona cada pedido con control.</h1><p>Catálogo, clientes y despachos en una vista operativa.</p></section><form className="access-form" onSubmit={submit}>
-    <div className="access-form-heading"><div className="brand-mark brand-mark-mobile">S</div><p className="eyebrow">ADMINISTRACION</p><h2>Bienvenido</h2><p>Ingresa con tus credenciales para continuar.</p></div>
+  return <main className="access-shell"><section className="access-brand"><h1>Gestiona cada pedido con control.</h1><p>Catálogo, clientes y despachos en una vista operativa.</p></section><form className="access-form" onSubmit={submit}>
+    <div className="access-form-heading"><BrandMark /><p className="eyebrow">ADMINISTRACION</p><h2>Bienvenido</h2><p>Ingresa con tus credenciales para continuar.</p></div>
     <label htmlFor="admin-email" className="form-label">Correo</label>
     <input id="admin-email" className="form-control form-control-lg" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
     <label htmlFor="admin-password" className="form-label mt-3">Contraseña</label>
@@ -164,9 +167,11 @@ function ProductManagerLegacy({ categories }) {
 function ProductManager({ categories }) {
   const blankProduct = { categoria_id: "", codigo: "", nombre: "", precio: "", cantidad: "0", imagen_url: "", activo: true };
   const [products, setProducts] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [stockThreshold, setStockThreshold] = useState("");
+  const [page, setPage] = useState(1);
   const [product, setProduct] = useState(null);
   const [form, setForm] = useState(blankProduct);
   const [notice, setNotice] = useState("");
@@ -176,13 +181,12 @@ function ProductManager({ categories }) {
 
   const imageSource = (value) => value ? `data:image/jpeg;base64,${value}` : null;
   const categoryName = (id) => categories.find((category) => category.id === id)?.nombre ?? "Sin categoría";
-  const filteredProducts = products.filter((item) => (!selectedCategory || item.categoria_id === selectedCategory) && item.nombre.toLowerCase().includes(productSearch.trim().toLowerCase()));
 
   async function loadProducts() {
     try {
-      const { data } = await api.get("/admin/productos");
-      setAllProducts(data);
-      setProducts(data);
+      const { data } = await api.get("/admin/productos", { params: { category_id: selectedCategory || undefined, search: productSearch.trim() || undefined, stock_lt: stockThreshold === "" ? undefined : Number(stockThreshold), page, page_size: 10 } });
+      setProducts(data.items);
+      setTotalProducts(data.total);
     } catch {
       setError("No fue posible cargar los productos.");
     } finally {
@@ -190,7 +194,10 @@ function ProductManager({ categories }) {
     }
   }
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => {
+    const timer = setTimeout(loadProducts, 200);
+    return () => clearTimeout(timer);
+  }, [selectedCategory, productSearch, stockThreshold, page]);
 
   useEffect(() => {
     const table = document.querySelector(".product-table");
@@ -209,22 +216,74 @@ function ProductManager({ categories }) {
     searchInput.placeholder = "Buscar por nombre";
     searchInput.setAttribute("aria-label", "Buscar producto por nombre");
     searchField.append(searchInput);
-    filters.append(categorySelect, searchField);
+    const stockField = document.createElement("div");
+    stockField.className = "product-stock-filter";
+    const stockLabel = document.createElement("label");
+    stockLabel.htmlFor = "product-stock-threshold";
+    stockLabel.textContent = "Stock <";
+    const stockInput = document.createElement("input");
+    stockInput.id = "product-stock-threshold";
+    stockInput.className = "form-control";
+    stockInput.type = "number";
+    stockInput.placeholder = "Sin límite";
+    stockInput.setAttribute("aria-label", "Filtrar productos con stock menor a");
+    stockField.append(stockLabel, stockInput);
+    filters.append(categorySelect, searchField, stockField);
     table.before(filters);
     function filterProducts() {
-      const term = searchInput.value.trim().toLowerCase();
       setSelectedCategory(categorySelect.value);
       setProductSearch(searchInput.value);
-      setProducts(allProducts.filter((item) => (!categorySelect.value || item.categoria_id === categorySelect.value) && item.nombre.toLowerCase().includes(term)));
+      setStockThreshold(stockInput.value);
+      setPage(1);
     }
     categorySelect.addEventListener("change", filterProducts);
     searchInput.addEventListener("input", filterProducts);
+    stockInput.addEventListener("input", filterProducts);
     return () => {
       categorySelect.removeEventListener("change", filterProducts);
       searchInput.removeEventListener("input", filterProducts);
+      stockInput.removeEventListener("input", filterProducts);
       filters.remove();
     };
-  }, [allProducts, categories]);
+  }, [categories, loading]);
+
+  useEffect(() => {
+    document.querySelectorAll(".product-table .product-row").forEach((row) => {
+      row.children[3]?.classList.toggle("stock-critical", Number(row.children[3]?.textContent) <= 0);
+    });
+  }, [products]);
+
+  useEffect(() => {
+    const table = document.querySelector(".product-table");
+    if (!table || totalProducts <= 10) return undefined;
+    const totalPages = Math.ceil(totalProducts / 10);
+    const pager = document.createElement("nav");
+    pager.className = "product-pagination";
+    pager.setAttribute("aria-label", "Paginación de productos");
+    const summary = document.createElement("small");
+    summary.textContent = `Página ${page} de ${totalPages} · ${totalProducts} productos`;
+    const previous = document.createElement("button");
+    previous.className = "btn btn-outline-primary btn-sm";
+    previous.type = "button";
+    previous.textContent = "Anterior";
+    previous.disabled = page === 1;
+    const next = document.createElement("button");
+    next.className = "btn btn-primary btn-sm";
+    next.type = "button";
+    next.textContent = "Siguiente";
+    next.disabled = page === totalPages;
+    const goPrevious = () => setPage((current) => Math.max(1, current - 1));
+    const goNext = () => setPage((current) => Math.min(totalPages, current + 1));
+    previous.addEventListener("click", goPrevious);
+    next.addEventListener("click", goNext);
+    pager.append(summary, previous, next);
+    table.after(pager);
+    return () => {
+      previous.removeEventListener("click", goPrevious);
+      next.removeEventListener("click", goNext);
+      pager.remove();
+    };
+  }, [page, totalProducts]);
 
   function setField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -546,6 +605,8 @@ function AdminOrderManager() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingState, setUpdatingState] = useState(false);
+  const [deliveryPayment, setDeliveryPayment] = useState(null);
+  const [creditDays, setCreditDays] = useState("");
 
   async function loadOrders() {
     try {
@@ -574,14 +635,29 @@ function AdminOrderManager() {
       setConfirmation(null);
       return;
     }
+    if (confirmation.nextState === "Entregado" && deliveryPayment === null) {
+      setError("Indica si el cliente pagó el pedido.");
+      return;
+    }
+    if (confirmation.nextState === "Entregado" && !deliveryPayment && (!Number.isInteger(Number(creditDays)) || Number(creditDays) < 1)) {
+      setError("Indica una cantidad válida de días de crédito.");
+      return;
+    }
     setUpdatingState(true);
     try {
-      const { data } = await api.patch(`/pedidos/${confirmation.order.id}/estado`, { estado_id: nextState.id });
+      const payload = { estado_id: nextState.id };
+      if (confirmation.nextState === "Entregado") {
+        payload.pagado = deliveryPayment;
+        if (!deliveryPayment) payload.dias_credito = Number(creditDays);
+      }
+      const { data } = await api.patch(`/pedidos/${confirmation.order.id}/estado`, payload);
       setOrders((current) => current.map((order) => order.id === data.id ? data : order));
       setSelectedOrder(data);
       setNotice(`Pedido ${data.id.slice(0, 8).toUpperCase()} actualizado a ${data.estado.nombre}.`);
       setError("");
       setConfirmation(null);
+      setDeliveryPayment(null);
+      setCreditDays("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail ?? "No fue posible actualizar el estado del pedido.");
       setConfirmation(null);
@@ -590,63 +666,15 @@ function AdminOrderManager() {
     }
   }
 
-  function exportOrderPdf(order) {
-    const document = new jsPDF({ unit: "mm", format: "a4" });
+  async function exportOrderPdf(order) {
     const code = order.id.slice(0, 8).toUpperCase();
-    const client = order.cliente.nombre || order.cliente.rut || order.cliente.celular || "Cliente";
-    const clientIdentifier = order.cliente.rut || order.cliente.celular || "Sin identificador";
-    const address = [order.direccion.direccion, order.direccion.comuna].filter(Boolean).join(", ");
-    const formattedDate = order.created_at ? new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeStyle: "short" }).format(new Date(order.created_at)) : "-";
-    let positionY = 20;
-
-    document.setFont("helvetica", "bold");
-    document.setFontSize(19);
-    document.text("Santa Mena", 18, positionY);
-    document.setFontSize(13);
-    document.text(`Pedido ${code}`, 150, positionY, { align: "right" });
-    positionY += 10;
-    document.setDrawColor(20, 108, 206);
-    document.line(18, positionY, 192, positionY);
-    positionY += 10;
-    document.setFontSize(10);
-    document.setFont("helvetica", "normal");
-    document.text(`Cliente: ${client}`, 18, positionY);
-    positionY += 6;
-    document.text(`Identificador: ${clientIdentifier}`, 18, positionY);
-    positionY += 6;
-    document.text(`Fecha del pedido: ${formattedDate}`, 18, positionY);
-    positionY += 6;
-    document.text(`Dirección de despacho: ${address || "Sin dirección registrada"}`, 18, positionY, { maxWidth: 174 });
-    positionY += 14;
-    document.setFillColor(234, 244, 255);
-    document.rect(18, positionY - 5, 174, 8, "F");
-    document.setFont("helvetica", "bold");
-    document.text("Producto", 20, positionY);
-    document.text("Cantidad", 112, positionY, { align: "right" });
-    document.text("Precio", 145, positionY, { align: "right" });
-    document.text("Subtotal", 190, positionY, { align: "right" });
-    positionY += 8;
-    document.setFont("helvetica", "normal");
-    order.detalles.forEach((line) => {
-      const productLines = document.splitTextToSize(line.nombre_producto, 82);
-      const rowHeight = Math.max(productLines.length * 5, 7);
-      if (positionY + rowHeight > 275) {
-        document.addPage();
-        positionY = 20;
-      }
-      document.text(productLines, 20, positionY);
-      document.text(String(line.cantidad), 112, positionY, { align: "right" });
-      document.text(money.format(line.precio_unitario), 145, positionY, { align: "right" });
-      document.text(money.format(line.subtotal), 190, positionY, { align: "right" });
-      positionY += rowHeight;
-      document.setDrawColor(217, 226, 236);
-      document.line(18, positionY + 1, 192, positionY + 1);
-      positionY += 5;
-    });
-    document.setFont("helvetica", "bold");
-    document.setFontSize(12);
-    document.text(`Total: ${money.format(order.total)}`, 190, positionY + 6, { align: "right" });
-    document.save(`pedido-${code}.pdf`);
+    const { data } = await api.get(`/pedidos/${order.id}/pdf`, { responseType: "blob" });
+    const url = URL.createObjectURL(data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `pedido-${code}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => {
@@ -705,7 +733,55 @@ function AdminOrderManager() {
   });
 
   const dateFormatter = new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short" });
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">OPERACION</p><h1>Pedidos</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Seguimiento de pedidos</span></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">PEDIDOS</p><h2>Controla todos los pedidos</h2><p>Consulta solicitudes de todos tus clientes y revisa su detalle.</p></div><div className="summary-metric"><span>{visibleOrders.length}</span><small>Pedidos visibles</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de pedidos</h2><p>Filtra por estado, código de pedido o rango de fechas.</p></div><span className="panel-count">{visibleOrders.length} pedidos</span></div><div className="order-history-filters"><label>Estado<select className="form-select" value={filters.estado} onChange={(event) => setFilters((current) => ({ ...current, estado: event.target.value }))}><option>Pedido</option><option>Despachado</option><option>Entregado</option><option>Cancelado</option></select></label><label>Pedido<input className="form-control" type="search" placeholder="Ej. 4CB969B1" value={filters.codigo} onChange={(event) => setFilters((current) => ({ ...current, codigo: event.target.value }))} /></label><label>Desde<input className="form-control" type="date" value={filters.desde} onChange={(event) => setFilters((current) => ({ ...current, desde: event.target.value }))} /></label><label>Hasta<input className="form-control" type="date" value={filters.hasta} onChange={(event) => setFilters((current) => ({ ...current, hasta: event.target.value }))} /></label></div>{notice && <div className="alert alert-success mt-3 mb-0 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando pedidos...</p> : <div className="admin-order-table mt-4"><div className="admin-order-head"><span>Pedido</span><span>Cliente</span><span>Fecha</span><span>Estado</span><span>Total</span><span>Acciones</span></div>{visibleOrders.map((order) => <article className="admin-order-row" key={order.id}><div><strong>Pedido {order.id.slice(0, 8).toUpperCase()}</strong><small>{order.detalles.length} productos</small></div><div><strong>{order.cliente.nombre || order.cliente.rut || order.cliente.celular || "Cliente"}</strong><small>{order.cliente.rut || order.cliente.celular || "Sin identificador"}</small></div><span>{order.created_at ? dateFormatter.format(new Date(order.created_at)) : "-"}</span><span className={`order-status order-${order.estado.nombre.toLowerCase()}`}>{order.estado.nombre}</span><strong>{money.format(order.total)}</strong><button className="icon-button category-edit" type="button" onClick={() => setSelectedOrder(order)} aria-label={`Ver detalle del pedido ${order.id.slice(0, 8).toUpperCase()}`}><Eye size={16} /></button></article>)}{!visibleOrders.length && <p className="history-filter-empty">No hay pedidos que coincidan con los filtros.</p>}</div>}</section></div>{selectedOrder && <div className="modal-backdrop-custom"><section className="category-modal product-modal order-detail-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">PEDIDO</p><h2>Detalle del pedido</h2></div><button className="icon-button" type="button" onClick={() => setSelectedOrder(null)} aria-label="Cerrar detalle"><X size={19} /></button></header><div className="modal-body-custom"><div className="order-detail-meta"><span>Pedido {selectedOrder.id.slice(0, 8).toUpperCase()}</span><span>{selectedOrder.cliente.nombre || selectedOrder.cliente.rut || "Cliente"}</span><span>{selectedOrder.created_at ? dateFormatter.format(new Date(selectedOrder.created_at)) : ""}</span></div><div className="order-detail-lines"><div><span>Producto</span><span>Cantidad</span><span>Precio</span><span>Subtotal</span></div>{selectedOrder.detalles.map((line) => <div key={line.producto_id}><span>{line.nombre_producto}</span><span>{line.cantidad}</span><span>{money.format(line.precio_unitario)}</span><strong>{money.format(line.subtotal)}</strong></div>)}</div><div className="order-detail-total"><strong>Total</strong><strong>{money.format(selectedOrder.total)}</strong></div></div><footer><div className="order-state-actions">{availableTransitions(selectedOrder).map((nextState) => <button className={nextState === "Cancelado" ? "btn btn-outline-danger" : "btn btn-primary"} type="button" key={nextState} onClick={() => setConfirmation({ order: selectedOrder, nextState })}>{nextState === "Despachado" ? "Despachar" : nextState === "Entregado" ? "Entregar" : "Cancelar pedido"}</button>)}</div><button className="btn btn-light" type="button" onClick={() => setSelectedOrder(null)}>Cerrar</button></footer></section></div>}{confirmation && <div className="modal-backdrop-custom"><section className="category-modal confirmation-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">CONFIRMAR ACCION</p><h2>¿Cambiar estado del pedido?</h2></div><button className="icon-button" type="button" onClick={() => setConfirmation(null)} aria-label="Cerrar confirmación"><X size={19} /></button></header><div className="modal-body-custom"><p>El pedido <strong>{confirmation.order.id.slice(0, 8).toUpperCase()}</strong> cambiará de <strong>{confirmation.order.estado.nombre}</strong> a <strong>{confirmation.nextState}</strong>.</p><p className="mb-0">Esta acción actualizará el estado visible para el cliente.</p></div><footer><button className="btn btn-light" type="button" disabled={updatingState} onClick={() => setConfirmation(null)}>Volver</button><button className={confirmation.nextState === "Cancelado" ? "btn btn-danger" : "btn btn-primary"} type="button" disabled={updatingState} onClick={changeOrderStatus}>{updatingState ? "Actualizando..." : "Confirmar cambio"}</button></footer></section></div>}</>;
+  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">OPERACION</p><h1>Pedidos</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Seguimiento de pedidos</span></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">PEDIDOS</p><h2>Controla todos los pedidos</h2><p>Consulta solicitudes de todos tus clientes y revisa su detalle.</p></div><div className="summary-metric"><span>{visibleOrders.length}</span><small>Pedidos visibles</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de pedidos</h2><p>Filtra por estado, código de pedido o rango de fechas.</p></div><span className="panel-count">{visibleOrders.length} pedidos</span></div><div className="order-history-filters"><label>Estado<select className="form-select" value={filters.estado} onChange={(event) => setFilters((current) => ({ ...current, estado: event.target.value }))}><option>Pedido</option><option>Despachado</option><option>Entregado</option><option>Cancelado</option></select></label><label>Pedido<input className="form-control" type="search" placeholder="Ej. 4CB969B1" value={filters.codigo} onChange={(event) => setFilters((current) => ({ ...current, codigo: event.target.value }))} /></label><label>Desde<input className="form-control" type="date" value={filters.desde} onChange={(event) => setFilters((current) => ({ ...current, desde: event.target.value }))} /></label><label>Hasta<input className="form-control" type="date" value={filters.hasta} onChange={(event) => setFilters((current) => ({ ...current, hasta: event.target.value }))} /></label></div>{notice && <div className="alert alert-success mt-3 mb-0 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando pedidos...</p> : <div className="admin-order-table mt-4"><div className="admin-order-head"><span>Pedido</span><span>Cliente</span><span>Fecha</span><span>Estado</span><span>Total</span><span>Acciones</span></div>{visibleOrders.map((order) => <article className="admin-order-row" key={order.id}><div><strong>Pedido {order.id.slice(0, 8).toUpperCase()}</strong><small>{order.detalles.length} productos</small></div><div><strong>{order.cliente.nombre || order.cliente.rut || order.cliente.celular || "Cliente"}</strong><small>{order.cliente.rut || order.cliente.celular || "Sin identificador"}</small></div><span>{order.created_at ? dateFormatter.format(new Date(order.created_at)) : "-"}</span><span className={`order-status order-${order.estado.nombre.toLowerCase()}`}>{order.estado.nombre}</span><strong>{money.format(order.total)}</strong><button className="icon-button category-edit" type="button" onClick={() => setSelectedOrder(order)} aria-label={`Ver detalle del pedido ${order.id.slice(0, 8).toUpperCase()}`}><Eye size={16} /></button></article>)}{!visibleOrders.length && <p className="history-filter-empty">No hay pedidos que coincidan con los filtros.</p>}</div>}</section></div>{selectedOrder && <div className="modal-backdrop-custom"><section className="category-modal product-modal order-detail-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">PEDIDO</p><h2>Detalle del pedido</h2></div><button className="icon-button" type="button" onClick={() => setSelectedOrder(null)} aria-label="Cerrar detalle"><X size={19} /></button></header><div className="modal-body-custom"><div className="order-detail-meta"><span>Pedido {selectedOrder.id.slice(0, 8).toUpperCase()}</span><span>{selectedOrder.cliente.nombre || selectedOrder.cliente.rut || "Cliente"}</span><span>{selectedOrder.created_at ? dateFormatter.format(new Date(selectedOrder.created_at)) : ""}</span></div><div className="order-detail-lines"><div><span>Producto</span><span>Cantidad</span><span>Precio</span><span>Subtotal</span></div>{selectedOrder.detalles.map((line) => <div key={line.producto_id}><span>{line.nombre_producto}</span><span>{line.cantidad}</span><span>{money.format(line.precio_unitario)}</span><strong>{money.format(line.subtotal)}</strong></div>)}</div><div className="order-detail-total"><strong>Total</strong><strong>{money.format(selectedOrder.total)}</strong></div></div><footer><div className="order-state-actions">{availableTransitions(selectedOrder).map((nextState) => <button className={nextState === "Cancelado" ? "btn btn-outline-danger" : "btn btn-primary"} type="button" key={nextState} onClick={() => { setDeliveryPayment(null); setCreditDays(""); setConfirmation({ order: selectedOrder, nextState }); }}>{nextState === "Despachado" ? "Despachar" : nextState === "Entregado" ? "Entregar" : "Cancelar pedido"}</button>)}</div><button className="btn btn-light" type="button" onClick={() => setSelectedOrder(null)}>Cerrar</button></footer></section></div>}{confirmation && <div className="modal-backdrop-custom"><section className="category-modal confirmation-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">CONFIRMAR ACCION</p><h2>{confirmation.nextState === "Entregado" ? "¿Cliente pagó su pedido?" : "¿Cambiar estado del pedido?"}</h2></div><button className="icon-button" type="button" onClick={() => setConfirmation(null)} aria-label="Cerrar confirmación"><X size={19} /></button></header><div className="modal-body-custom"><p>El pedido <strong>{confirmation.order.id.slice(0, 8).toUpperCase()}</strong> cambiará de <strong>{confirmation.order.estado.nombre}</strong> a <strong>{confirmation.nextState}</strong>.</p>{confirmation.nextState === "Entregado" ? <><div className="payment-choice"><button type="button" className={deliveryPayment === true ? "btn btn-primary" : "btn btn-outline-primary"} onClick={() => { setDeliveryPayment(true); setCreditDays(""); }}>Sí, pagó</button><button type="button" className={deliveryPayment === false ? "btn btn-primary" : "btn btn-outline-primary"} onClick={() => setDeliveryPayment(false)}>No, queda a crédito</button></div>{deliveryPayment === false && <div className="mt-3"><label className="form-label" htmlFor="credit-days">Días de crédito</label><input id="credit-days" className="form-control" type="number" min="1" step="1" value={creditDays} onChange={(event) => setCreditDays(event.target.value)} required autoFocus /><small className="form-text">El vencimiento se calcula desde la fecha de entrega.</small></div>}</> : <p className="mb-0">Esta acción actualizará el estado visible para el cliente.</p>}</div><footer><button className="btn btn-light" type="button" disabled={updatingState} onClick={() => setConfirmation(null)}>Volver</button><button className={confirmation.nextState === "Cancelado" ? "btn btn-danger" : "btn btn-primary"} type="button" disabled={updatingState} onClick={changeOrderStatus}>{updatingState ? "Actualizando..." : confirmation.nextState === "Entregado" ? "Finalizar entrega" : "Confirmar cambio"}</button></footer></section></div>}</>;
+}
+
+function CreditManager() {
+  const [credits, setCredits] = useState([]);
+  const [paidFilter, setPaidFilter] = useState("pending");
+  const [selectedCredit, setSelectedCredit] = useState(null);
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function loadCredits() {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/creditos", { params: { pagado: paidFilter === "paid" } });
+      setCredits(data);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible cargar los créditos.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadCredits(); }, [paidFilter]);
+
+  async function confirmPayment() {
+    if (!selectedCredit || !paymentDate) return;
+    setSaving(true);
+    try {
+      await api.patch(`/creditos/${selectedCredit.id}/pago`, { fecha_pago: paymentDate });
+      setNotice(`Crédito del pedido ${selectedCredit.pedido.id.slice(0, 8).toUpperCase()} marcado como pagado.`);
+      setSelectedCredit(null);
+      await loadCredits();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible registrar el pago.");
+      setSelectedCredit(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const dateFormatter = new Intl.DateTimeFormat("es-CL", { dateStyle: "short" });
+  const customerName = (credit) => credit.cliente.nombre || credit.cliente.rut || credit.cliente.celular || "Cliente";
+  const dueDays = (credit) => Math.max(0, Math.ceil((new Date(credit.fecha_vencimiento) - new Date()) / 86_400_000));
+
+  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">COBRANZAS</p><h1>Créditos</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Seguimiento de cuentas por cobrar</span></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">CRÉDITOS</p><h2>{paidFilter === "pending" ? "Créditos pendientes" : "Historial de créditos pagados"}</h2><p>Controla los plazos de pago registrados al entregar los pedidos.</p></div><div className="summary-metric"><span>{credits.length}</span><small>{paidFilter === "pending" ? "Pendientes de pago" : "Pagados"}</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de créditos</h2><p>Consulta vencimientos y registra pagos recibidos.</p></div><span className="panel-count">{credits.length} registros</span></div><div className="credit-filters"><label htmlFor="credit-status">Vista</label><select id="credit-status" className="form-select" value={paidFilter} onChange={(event) => setPaidFilter(event.target.value)}><option value="pending">Pendientes</option><option value="paid">Historial pagados</option></select></div>{notice && <div className="alert alert-success mt-3 mb-0 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando créditos...</p> : <div className="credit-table mt-4"><div className="credit-table-head"><span>Cliente</span><span>Pedido</span><span>Días crédito</span><span>Entrega</span><span>Días al vencimiento</span><span>Vencimiento</span><span>{paidFilter === "paid" ? "Fecha pago" : "Acciones"}</span></div>{credits.length ? credits.map((credit) => <article className="credit-row" key={credit.id}><div><strong>{customerName(credit)}</strong><small>{credit.cliente.rut || credit.cliente.celular || "Sin identificador"}</small></div><strong>#{credit.pedido.id.slice(0, 8).toUpperCase()}</strong><span>{credit.dias_credito}</span><span>{dateFormatter.format(new Date(credit.fecha_entrega))}</span><span>{paidFilter === "pending" ? dueDays(credit) : "-"}</span><span>{dateFormatter.format(new Date(credit.fecha_vencimiento))}</span>{paidFilter === "paid" ? <span>{credit.fecha_pago ? dateFormatter.format(new Date(credit.fecha_pago)) : "-"}</span> : <button className="btn btn-outline-primary btn-sm" type="button" onClick={() => { setPaymentDate(new Date().toISOString().slice(0, 10)); setSelectedCredit(credit); }}>Marcar pagado</button>}</article>) : <p className="history-filter-empty">No hay créditos {paidFilter === "pending" ? "pendientes" : "pagados"}.</p>}</div>}</section></div>{selectedCredit && <div className="modal-backdrop-custom"><section className="category-modal confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="credit-payment-title"><header><div><p className="eyebrow">REGISTRAR PAGO</p><h2 id="credit-payment-title">¿Confirmar pago del crédito?</h2></div><button className="icon-button" type="button" onClick={() => setSelectedCredit(null)} aria-label="Cerrar confirmación"><X size={19} /></button></header><div className="modal-body-custom"><p>El crédito del pedido <strong>#{selectedCredit.pedido.id.slice(0, 8).toUpperCase()}</strong> quedará marcado como pagado.</p><label className="form-label" htmlFor="credit-payment-date">Fecha de pago</label><input id="credit-payment-date" className="form-control" type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} required /></div><footer><button className="btn btn-light" type="button" disabled={saving} onClick={() => setSelectedCredit(null)}>No</button><button className="btn btn-primary" type="button" disabled={saving || !paymentDate} onClick={confirmPayment}>{saving ? "Guardando..." : "Sí, marcar pagado"}</button></footer></section></div>}</>;
 }
 
 function AdminSalesDashboard() {
@@ -735,7 +811,7 @@ function AdminSalesDashboard() {
     ranking[id].orders += 1;
     ranking[id].total += Number(order.total);
     return ranking;
-  }, {})).sort((first, second) => second.total - first.total);
+  }, {})).sort((first, second) => second.total - first.total).slice(0, 10);
   const productRanking = Object.values(salesOrders.reduce((ranking, order) => {
     order.detalles.forEach((line) => {
       ranking[line.producto_id] ??= { id: line.producto_id, name: line.nombre_producto, units: 0, total: 0 };
@@ -743,7 +819,7 @@ function AdminSalesDashboard() {
       ranking[line.producto_id].total += Number(line.subtotal);
     });
     return ranking;
-  }, {})).sort((first, second) => second.units - first.units || second.total - first.total);
+  }, {})).sort((first, second) => second.units - first.units || second.total - first.total).slice(0, 10);
   const maxCustomerTotal = customerRanking[0]?.total ?? 1;
   const maxProductUnits = productRanking[0]?.units ?? 1;
 
@@ -760,6 +836,8 @@ function AdminDashboard({ onLogout }) {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editName, setEditName] = useState("");
   const [editActive, setEditActive] = useState(true);
+  const [editUsesCustomerPercentage, setEditUsesCustomerPercentage] = useState(true);
+  const [editPercentage, setEditPercentage] = useState("0");
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState("summary");
   const [configurationOpen, setConfigurationOpen] = useState(false);
@@ -795,6 +873,8 @@ function AdminDashboard({ onLogout }) {
     setEditingCategory(category);
     setEditName(category.nombre);
     setEditActive(category.activo);
+    setEditUsesCustomerPercentage(category.usa_porcentaje_cliente);
+    setEditPercentage(String(category.porcentaje ?? 0));
     setError("");
   }
 
@@ -803,7 +883,12 @@ function AdminDashboard({ onLogout }) {
     if (!editingCategory || !editName.trim()) return;
     setSaving(true);
     try {
-      await api.put(`/categorias/${editingCategory.id}`, { nombre: editName.trim(), activo: editActive });
+      await api.put(`/categorias/${editingCategory.id}`, {
+        nombre: editName.trim(),
+        usa_porcentaje_cliente: editUsesCustomerPercentage,
+        porcentaje: editUsesCustomerPercentage ? 0 : Number(editPercentage),
+        activo: editActive,
+      });
       setEditingCategory(null);
       setError("");
       await loadCategories();
@@ -825,17 +910,18 @@ function AdminDashboard({ onLogout }) {
     [FolderTree, "Categorías", "categories", true],
     [Package, "Productos", "products", true],
     [ClipboardList, "Pedidos", "orders", true],
+    [ClipboardList, "Créditos", "credits", true],
   ];
 
-  return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><span className="brand-mark">S</span><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || section === "users" || section === "customers" ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
-    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : <>
-    <section className="admin-workspace"><header className="admin-topbar"><button className="icon-button d-lg-none" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Categorías</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de Categoría</span><button className="btn btn-primary" onClick={() => document.getElementById("category-name")?.focus()}><Plus size={18} />Nueva categoría</button></div></header>
+  return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><BrandMark /><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || section === "users" || section === "customers" ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} /><button className="icon-button admin-mobile-menu d-lg-none" type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button>
+    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : <>
+    <section className="admin-workspace"><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Categorías</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de Categoría</span><button className="btn btn-primary" onClick={() => document.getElementById("category-name")?.focus()}><Plus size={18} />Nueva categoría</button></div></header>
       <div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">INVENTARIO</p><h2>Organiza tu Categoría</h2><p>Las categorías agrupan los productos visibles para tus clientes.</p></div><div className="summary-metric"><span>{categories.length}</span><small>Categorías registradas</small></div></section>
         <section className="content-panel"><div className="panel-heading"><div><h2>Listado de categorías</h2><p>Administra la clasificación de tu catálogo.</p></div><span className="panel-count">{categories.length} registros</span></div><form className="category-form" onSubmit={createCategory}><div><label htmlFor="category-name" className="visually-hidden">Nombre de categoría</label><input id="category-name" className="form-control" placeholder="Escribe una nueva categoría" value={name} onChange={(event) => setName(event.target.value)} maxLength="120" required /></div><button className="btn btn-primary"><Plus size={18} />Agregar</button></form>
           {notice && <div className="alert alert-success alert-dismissible fade show mt-3 mb-0 category-notice" role="alert"><CheckCircle2 size={18} />{notice}<button type="button" className="btn-close" aria-label="Cerrar" onClick={() => setNotice("")} /></div>}
           {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
-          {loading ? <p className="mt-4 text-secondary">Cargando categorías...</p> : <div className="category-table mt-4"><div className="category-table-head"><span>Categoría</span><span>Estado</span><span>Acciones</span></div>{categories.length ? categories.map((category) => <div className="category-row" key={category.id}><div className="category-name"><span className="category-icon"><Boxes size={18} /></span><strong>{category.nombre}</strong></div><span className={category.activo ? "status-active" : "status-inactive"}>{category.activo ? "Activa" : "Inactiva"}</span><button className="icon-button category-edit" onClick={() => openEdit(category)} aria-label={`Editar ${category.nombre}`}><Pencil size={16} /></button></div>) : <p className="text-secondary p-4 mb-0">Aún no hay categorías. Agrega la primera para comenzar.</p>}</div>}
-        </section></div></section>{editingCategory && <div className="modal-backdrop-custom" role="presentation"><form className="category-modal" onSubmit={updateCategory} role="dialog" aria-modal="true" aria-labelledby="edit-category-title"><header><div><p className="eyebrow">CATEGORIA</p><h2 id="edit-category-title">Editar categoría</h2></div><button type="button" className="icon-button" onClick={() => setEditingCategory(null)} aria-label="Cerrar edición"><X size={19} /></button></header><div className="modal-body-custom"><label htmlFor="edit-category-name" className="form-label">Nombre</label><input id="edit-category-name" className="form-control" value={editName} onChange={(event) => setEditName(event.target.value)} maxLength="120" required autoFocus /><div className="status-toggle"><div><strong>Estado de la categoría</strong><small>Las categorías inactivas no aparecen al cliente.</small></div><label className="switch"><input type="checkbox" checked={editActive} onChange={(event) => setEditActive(event.target.checked)} /><span /></label></div></div><footer><button type="button" className="btn btn-light" onClick={() => setEditingCategory(null)}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar cambios</>}</button></footer></form></div>}</>}</main>;
+          {loading ? <p className="mt-4 text-secondary">Cargando categorías...</p> : <div className="category-table mt-4"><div className="category-table-head"><span>Categoría</span><span>Porcentaje</span><span>Estado</span><span>Acciones</span></div>{categories.length ? categories.map((category) => <div className="category-row" key={category.id}><div className="category-name"><span className="category-icon"><Boxes size={18} /></span><strong>{category.nombre}</strong></div><span className="category-percentage">{category.usa_porcentaje_cliente ? "Cliente" : `${Number(category.porcentaje)}%`}</span><span className={category.activo ? "status-active" : "status-inactive"}>{category.activo ? "Activa" : "Inactiva"}</span><button className="icon-button category-edit" onClick={() => openEdit(category)} aria-label={`Editar ${category.nombre}`}><Pencil size={16} /></button></div>) : <p className="text-secondary p-4 mb-0">Aún no hay categorías. Agrega la primera para comenzar.</p>}</div>}
+        </section></div></section>{editingCategory && <div className="modal-backdrop-custom" role="presentation"><form className="category-modal" onSubmit={updateCategory} role="dialog" aria-modal="true" aria-labelledby="edit-category-title"><header><div><p className="eyebrow">CATEGORIA</p><h2 id="edit-category-title">Editar categoría</h2></div><button type="button" className="icon-button" onClick={() => setEditingCategory(null)} aria-label="Cerrar edición"><X size={19} /></button></header><div className="modal-body-custom"><label htmlFor="edit-category-name" className="form-label">Nombre</label><input id="edit-category-name" className="form-control" value={editName} onChange={(event) => setEditName(event.target.value)} maxLength="120" required autoFocus /><div className="status-toggle"><div><strong>Usar porcentaje del cliente</strong><small>Aplica el porcentaje configurado para el cliente.</small></div><label className="switch"><input type="checkbox" checked={editUsesCustomerPercentage} onChange={(event) => setEditUsesCustomerPercentage(event.target.checked)} /><span /></label></div>{!editUsesCustomerPercentage && <div className="mt-3"><label htmlFor="edit-category-percentage" className="form-label">Porcentaje de la categoría</label><input id="edit-category-percentage" className="form-control" type="number" min="0" max="100" step="0.01" value={editPercentage} onChange={(event) => setEditPercentage(event.target.value)} required /><small className="form-text">Se suma al precio base de los productos de esta categoría.</small></div>}<div className="status-toggle"><div><strong>Estado de la categoría</strong><small>Las categorías inactivas no aparecen al cliente.</small></div><label className="switch"><input type="checkbox" checked={editActive} onChange={(event) => setEditActive(event.target.checked)} /><span /></label></div></div><footer><button type="button" className="btn btn-light" onClick={() => setEditingCategory(null)}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar cambios</>}</button></footer></form></div>}</>}</main>;
 }
 
 function ShopLegacy({ customer }) {
@@ -877,9 +963,11 @@ function ShopLegacy({ customer }) {
 
 function Shop({ customer, onLogout }) {
   const [products, setProducts] = useState([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [cart, setCart] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(customer.direcciones?.find((address) => address.principal && address.activo)?.id ?? customer.direcciones?.find((address) => address.activo)?.id ?? "");
   const [section, setSection] = useState("create");
@@ -892,17 +980,20 @@ function Shop({ customer, onLogout }) {
 
   async function loadProducts() {
     try {
-      const { data } = await api.get("/productos", { params: { category_id: selectedCategory || undefined, search: query || undefined, customer_id: customer.id } });
-      setProducts(data);
+      const { data } = await api.get("/productos", { params: { category_id: selectedCategory || undefined, search: query || undefined, customer_id: customer.id, page, page_size: 10 } });
+      setProducts(data.items);
+      setTotalProducts(data.total);
     } catch {
       setError("No fue posible cargar los productos.");
     }
   }
 
+  useEffect(() => { setPage(1); }, [query, selectedCategory]);
+
   useEffect(() => {
     const timer = setTimeout(loadProducts, 200);
     return () => clearTimeout(timer);
-  }, [query, selectedCategory, customer.id]);
+  }, [query, selectedCategory, customer.id, page]);
 
   useEffect(() => {
     api.get("/categorias").then(({ data }) => setCategories(data)).catch(() => setError("No fue posible cargar las categorías."));
@@ -920,11 +1011,43 @@ function Shop({ customer, onLogout }) {
     categorySelect.append(new Option("Todas las categorías", ""));
     categories.forEach((category) => categorySelect.append(new Option(category.nombre, category.id)));
     categorySelect.value = selectedCategory;
-    categorySelect.addEventListener("change", (event) => setSelectedCategory(event.target.value));
+    categorySelect.addEventListener("change", (event) => { setSelectedCategory(event.target.value); setPage(1); });
     filters.append(categorySelect);
     searchField.before(filters);
     return () => filters.remove();
   }, [categories, section]);
+
+  useEffect(() => {
+    const productGrid = document.querySelector(".customer-workspace .product-grid");
+    if (section !== "create" || !productGrid || totalProducts <= 10) return undefined;
+    const totalPages = Math.ceil(totalProducts / 10);
+    const pager = document.createElement("nav");
+    pager.className = "product-pagination customer-product-pagination";
+    pager.setAttribute("aria-label", "Paginación del catálogo");
+    const summary = document.createElement("small");
+    summary.textContent = `Página ${page} de ${totalPages} · ${totalProducts} productos`;
+    const previous = document.createElement("button");
+    previous.className = "btn btn-outline-primary btn-sm";
+    previous.type = "button";
+    previous.textContent = "Anterior";
+    previous.disabled = page === 1;
+    const next = document.createElement("button");
+    next.className = "btn btn-primary btn-sm";
+    next.type = "button";
+    next.textContent = "Siguiente";
+    next.disabled = page === totalPages;
+    const goPrevious = () => setPage((current) => Math.max(1, current - 1));
+    const goNext = () => setPage((current) => Math.min(totalPages, current + 1));
+    previous.addEventListener("click", goPrevious);
+    next.addEventListener("click", goNext);
+    pager.append(summary, previous, next);
+    productGrid.after(pager);
+    return () => {
+      previous.removeEventListener("click", goPrevious);
+      next.removeEventListener("click", goNext);
+      pager.remove();
+    };
+  }, [page, section, totalProducts]);
 
   async function loadHistory() {
     try {
@@ -938,7 +1061,9 @@ function Shop({ customer, onLogout }) {
   useEffect(() => {
     if (section !== "history" || !orders.length) return undefined;
     const history = document.querySelector(".customer-workspace .order-history");
-    if (!history || history.querySelector(".order-history-head")) return undefined;
+    if (!history) return undefined;
+    history.querySelector(".order-history-head")?.remove();
+    history.querySelectorAll(".order-date, .order-history-action").forEach((element) => element.remove());
     const header = document.createElement("div");
     header.className = "order-history-head";
     header.innerHTML = "<span>Pedido</span><span>Fecha</span><span>Estado</span><span>Total</span><span>Acciones</span>";
@@ -951,18 +1076,21 @@ function Shop({ customer, onLogout }) {
       date.className = "order-date";
       date.textContent = order.created_at ? formatter.format(new Date(order.created_at)) : "-";
       const action = document.createElement("button");
-      action.className = "icon-button category-edit";
+      action.className = "btn btn-outline-primary btn-sm order-history-action";
       action.type = "button";
       action.setAttribute("aria-label", "Ver detalle del pedido");
-      const iconRoot = createRoot(action);
-      iconRoot.render(<Eye size={16} />);
+      action.textContent = "Ver";
       const showDetail = () => setSelectedOrder(order);
       action.addEventListener("click", showDetail);
       row.children[1]?.before(date);
       row.append(action);
-      cleanup.push(() => { action.removeEventListener("click", showDetail); iconRoot.unmount(); });
+      cleanup.push(() => action.removeEventListener("click", showDetail));
     });
-    return () => cleanup.forEach((dispose) => dispose());
+    return () => {
+      cleanup.forEach((dispose) => dispose());
+      header.remove();
+      history.querySelectorAll(".order-date, .order-history-action").forEach((element) => element.remove());
+    };
   }, [section, orders]);
 
   useEffect(() => {
@@ -1072,6 +1200,54 @@ function Shop({ customer, onLogout }) {
 function App() {
   const [customer, setCustomer] = useState(null);
   const [view, setView] = useState("customer-access");
+
+  useEffect(() => {
+    const timers = new Map();
+    const alertSelector = ".alert.alert-success, .alert.alert-danger";
+    const prepareChartTooltips = () => {
+      document.querySelectorAll(".dashboard-ranking .ranking-list li").forEach((item) => {
+        const name = item.querySelector(".ranking-main strong")?.textContent?.trim();
+        const valueElement = item.querySelector(".ranking-value");
+        const value = valueElement?.textContent?.trim();
+        const bar = item.querySelector(".ranking-main i");
+        if (!name || !value || !valueElement || !bar) return;
+        bar.title = `${name}: ${value}`;
+        bar.setAttribute("aria-label", `${name}: ${value}`);
+      });
+    };
+    const prepareAlert = (alert) => {
+      if (alert.dataset.autoDismissPrepared) return;
+      alert.dataset.autoDismissPrepared = "true";
+      let dismiss = alert.querySelector(".btn-close");
+      if (!dismiss) {
+        dismiss = document.createElement("button");
+        dismiss.className = "btn-close";
+        dismiss.type = "button";
+        dismiss.setAttribute("aria-label", "Cerrar mensaje");
+        dismiss.addEventListener("click", () => alert.remove(), { once: true });
+        alert.append(dismiss);
+      }
+      timers.set(alert, window.setTimeout(() => {
+        if (alert.isConnected) dismiss.click();
+      }, 5000));
+    };
+    const observer = new MutationObserver((records) => {
+      records.forEach((record) => record.addedNodes.forEach((node) => {
+        if (!(node instanceof Element)) return;
+        if (node.matches(alertSelector)) prepareAlert(node);
+        node.querySelectorAll?.(alertSelector).forEach(prepareAlert);
+      }));
+      prepareChartTooltips();
+    });
+    document.querySelectorAll(alertSelector).forEach(prepareAlert);
+    prepareChartTooltips();
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, []);
+
   if (customer) return <Shop customer={customer} onLogout={() => setCustomer(null)} />;
   if (view === "admin-dashboard") return <AdminDashboard onLogout={() => setView("customer-access")} />;
   if (view === "admin-access") return <AdminAccess onLogin={() => setView("admin-dashboard")} onCustomerAccess={() => setView("customer-access")} />;

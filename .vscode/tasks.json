@@ -321,6 +321,783 @@
 			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }; Set-Location backend; Remove-Item Env:DATABASE_PASSWORD -ErrorAction SilentlyContinue; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
 			"isBackground": true,
 			"problemMatcher": []
+		},
+		{
+			"label": "Compilar tarjetas del dashboard",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar rankings Top 10 dashboard",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar estilo tarjetas Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar borde tarjetas Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar métricas dashboard",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar monto cliente principal",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar rankings compactos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar scroll detalle pedido",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar avisos auto cierre",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar gráficos Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar gráficos verticales Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar gráficos verticales compactos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar tooltips gráficos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar alineación gráficos Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar etiquetas gráficos Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar espaciado gráficos Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar etiquetas dentro gráfico",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar valores en gráficos Top 10",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar valores entre texto y barra",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar API paginada productos",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar paginación administrador",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar paginación catálogo completa",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\" & C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar frontend catálogo paginado",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar backend catálogo paginado",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar estilo móvil paginación",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Detener API anterior Santa Mena",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Iniciar API paginada Santa Mena",
+			"type": "shell",
+			"command": "Set-Location backend; C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar filtros catálogo cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar menú móvil administrador",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar menú hamburguesa global",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar sidebar fijo administrador",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar sidebar fijo cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar responsive portal cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar aviso catálogo cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar historial de pedidos cliente",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar alineación de cabeceras",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar corrección de cabeceras",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build final de alineación",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build de títulos alineados",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build de ancho administrativo",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar precios por categoría",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar interfaz de categorías",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Aplicar porcentaje por categoría",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"cd /d backend && C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m alembic upgrade head\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Aplicar migración de categorías",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic upgrade head",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar cálculos por categoría",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -c \"from decimal import Decimal; from app.models.entities import Categoria, Cliente, Producto; from app.services.pricing import customer_product_price; customer = Cliente(porcentaje=Decimal('12')); product = Producto(precio=Decimal('1000')); product.categoria = Categoria(usa_porcentaje_cliente=True, porcentaje=Decimal('5')); client_price = customer_product_price(product, customer); product.categoria.usa_porcentaje_cliente = False; fixed_price = customer_product_price(product, customer); assert client_price == Decimal('1120.00') and fixed_price == Decimal('1050.00'); print(f'cliente={client_price}; categoria={fixed_price}')\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API Santa Mena",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Confirmar migración de categorías",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic current",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar créditos de entrega",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Leer modal de entrega",
+			"type": "shell",
+			"command": "$line = (Get-Content frontend\\src\\main.jsx)[741]; $line.Substring(4500, [Math]::Min(1600, $line.Length - 4500))",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Extraer diálogo de entrega",
+			"type": "shell",
+			"command": "$match = Select-String -Path frontend\\src\\main.jsx -Pattern 'confirmation-modal'; $line = $match.Line; $line.Length; $line.Substring([Math]::Max(0, $line.IndexOf('confirmation-modal') - 250), [Math]::Min(2200, $line.Length - [Math]::Max(0, $line.IndexOf('confirmation-modal') - 250)))",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Leer confirmación actual",
+			"type": "shell",
+			"command": "$match = Select-String -Path frontend\\src\\main.jsx -Pattern 'confirmation-modal'; $line = $match.Line; $line.Substring($line.IndexOf('confirmation-modal') - 40)",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar diálogo de crédito",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build de créditos por entrega",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Revalidar diálogo de crédito",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Aplicar migración de créditos",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic upgrade head",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Detener API para créditos",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Confirmar tabla de créditos",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic current",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar créditos backend",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build de vista Créditos",
+			"type": "shell",
+			"command": "C:\\Windows\\System32\\cmd.exe /d /c \"npm.cmd --prefix frontend run build\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API para créditos",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Confirmar rutas de créditos",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic current",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar notificación de pedidos",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar PDF de pedido",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nfrom datetime import UTC, datetime\nfrom decimal import Decimal\nfrom types import SimpleNamespace\nfrom app.services.notifications import _order_pdf\norder = SimpleNamespace(\n    id='12345678-1234-1234-1234-123456789abc',\n    cliente=SimpleNamespace(nombre='Cliente de Prueba', rut='1-9', celular=None),\n    direccion=SimpleNamespace(direccion='Calle Principal 123', comuna='Santiago'),\n    created_at=datetime.now(UTC),\n    detalles=[SimpleNamespace(cantidad=2, nombre_producto='Producto de prueba', subtotal=Decimal('2000'))],\n    total=Decimal('2000'),\n)\npdf = _order_pdf(order)\nassert pdf.startswith(b'%PDF-1.4') and len(pdf) > 500\nprint(f'PDF válido: {len(pdf)} bytes')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar configuración SMTP local",
+			"type": "shell",
+			"command": "if (Test-Path .env) { 'EXISTS' } else { 'MISSING' }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verificar estado SMTP",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nfrom app.core.config import get_settings\nprint('CONFIGURED' if get_settings().smtp_configured else 'NOT_CONFIGURED')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Probar comprobante de pedido",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m pytest tests\\test_notifications.py -q",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar PDF sin pytest",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nimport importlib.util\nfrom pathlib import Path\nspec = importlib.util.spec_from_file_location('test_notifications', Path('tests/test_notifications.py'))\nmodule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nmodule.test_order_pdf_contains_valid_header()\nprint('Prueba de PDF aprobada')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Revisar cambios de notificaciones",
+			"type": "shell",
+			"command": "git diff --check; git status --short",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar conexión SMTP Santa Mena",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nimport smtplib\nfrom app.core.config import get_settings\nsettings = get_settings()\nassert settings.smtp_configured, 'SMTP no está configurado'\nwith smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:\n    smtp.login(settings.smtp_username, settings.smtp_password)\nprint('Autenticación SMTP correcta')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Iniciar API Santa Mena",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Iniciar API Santa Mena con SMTP",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Identificar API en puerto 8000",
+			"type": "shell",
+			"command": "$processId = Get-NetTCPConnection -LocalPort 8000 -State Listen | Select-Object -First 1 -ExpandProperty OwningProcess; Get-Process -Id $processId | Select-Object Id, ProcessName, StartTime, Path | Format-List",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar comando de API activa",
+			"type": "shell",
+			"command": "Get-CimInstance Win32_Process -Filter \"ProcessId = 18060\" | Select-Object ProcessId, CommandLine | Format-List",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Detener API anterior Santa Mena",
+			"type": "shell",
+			"command": "Stop-Process -Id 18060 -Force",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Servidor API SMTP Santa Mena",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API Santa Mena",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/docs).StatusCode",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar salud API Santa Mena",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar notificaciones cliente",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app\\services\\notifications.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar correo cliente",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nfrom datetime import UTC, datetime\nfrom decimal import Decimal\nfrom types import SimpleNamespace\nfrom app.services.notifications import _build_order_message\norder = SimpleNamespace(\n    id='12345678-1234-1234-1234-123456789abc',\n    cliente=SimpleNamespace(nombre='Cliente de Prueba', rut='1-9', correo='cliente@example.com', celular='+56912345678'),\n    direccion=SimpleNamespace(direccion='Calle Principal 123', comuna='Santiago'),\n    created_at=datetime.now(UTC),\n    detalles=[SimpleNamespace(codigo_producto='PR-001', cantidad=2, nombre_producto='Producto de prueba', precio_unitario=Decimal('1000'), subtotal=Decimal('2000'))],\n    total=Decimal('2000'),\n)\nmessage = _build_order_message(order, 'cliente@example.com', 'Confirmación', 'PEDIDO CONFIRMADO', 'Recibimos tu pedido.', False)\nassert message['To'] == 'cliente@example.com'\nassert message['Subject'] == 'Confirmación'\nassert any(part.get_content_type() == 'application/pdf' for part in message.walk())\nprint('Mensaje de cliente válido')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API con correos de cliente",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API tras correos cliente",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Instalar PDF Santa Mena",
+			"type": "shell",
+			"command": "& 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m pip install -r backend\\requirements.txt",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar PDF unificado",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nimport importlib.util\nfrom pathlib import Path\nspec = importlib.util.spec_from_file_location('test_notifications', Path('tests/test_notifications.py'))\nmodule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nmodule.test_order_pdf_contains_valid_header()\nprint('PDF unificado válido')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Actualizar dependencias frontend",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend install",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir frontend PDF unificado",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar backend PDF unificado",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API PDF unificado",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API PDF unificado",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar logo en PDF Santa Mena",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nimport importlib.util\nfrom pathlib import Path\nfrom app.services.notifications import LOGO_PATH\nassert LOGO_PATH.is_file(), 'Logo no encontrado'\nspec = importlib.util.spec_from_file_location('test_notifications', Path('tests/test_notifications.py'))\nmodule = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(module)\nmodule.test_order_pdf_contains_valid_header()\nprint('Logo incorporado y PDF válido')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Publicar logo Santa Mena frontend",
+			"type": "shell",
+			"command": "New-Item -ItemType Directory -Force frontend\\public | Out-Null; Copy-Item backend\\assets\\santa-mena-logo.jpg frontend\\public\\santa-mena-logo.jpg -Force",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir frontend con logo",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir accesos con logo",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir logo ampliado",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir accesos con texto",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir cabecera Santa Mena",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir cabecera móvil",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir cabecera móvil completa",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar pedidos con stock negativo",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app\\services\\ordering.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API con stock negativo",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API stock negativo",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Diagnosticar catálogo y CORS",
+			"type": "shell",
+			"command": "$response = Invoke-WebRequest -UseBasicParsing -Headers @{ Origin = 'http://127.0.0.1:5173' } 'http://127.0.0.1:8000/api/productos?page=1&page_size=10'; [PSCustomObject]@{ Status = $response.StatusCode; Cors = $response.Headers['access-control-allow-origin']; Body = $response.Content } | Format-List",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Obtener error catálogo",
+			"type": "shell",
+			"command": "try { Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8000/api/productos?page=1&page_size=10' | Out-Null } catch { $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream()); $reader.ReadToEnd() }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar contrato de inventario",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app\\schemas\\dto.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API con inventario negativo",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar catálogo tras inventario negativo",
+			"type": "shell",
+			"command": "$response = Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8000/api/productos?page=1&page_size=10'; $data = $response.Content | ConvertFrom-Json; [PSCustomObject]@{ Status = $response.StatusCode; Productos = $data.items.Count; Total = $data.total } | Format-List",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir menú admin móvil",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir menú único admin",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Compilar filtro stock backend",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app\\controllers\\routes.py",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir filtro stock frontend",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API filtro de stock",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API filtro de stock",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }
