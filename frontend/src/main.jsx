@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -6,6 +6,43 @@ import "./styles.css";
 import { api, setAdminToken } from "./services/api";
 
 const money = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" });
+const configuredInactivityMinutes = Number(import.meta.env.VITE_SESSION_INACTIVITY_MINUTES ?? 10);
+const sessionInactivityMilliseconds = (Number.isFinite(configuredInactivityMinutes) && configuredInactivityMinutes > 0 ? configuredInactivityMinutes : 10) * 60 * 1000;
+const sessionWarningMilliseconds = 60 * 1000;
+
+function SessionInactivityGuard({ children, onTimeout }) {
+  const [secondsRemaining, setSecondsRemaining] = useState(null);
+  const expiresAt = useRef(Date.now() + sessionInactivityMilliseconds);
+  const timedOut = useRef(false);
+
+  useEffect(() => {
+    const resetInactivity = () => {
+      expiresAt.current = Date.now() + sessionInactivityMilliseconds;
+      setSecondsRemaining(null);
+    };
+    const checkInactivity = () => {
+      const millisecondsRemaining = expiresAt.current - Date.now();
+      if (millisecondsRemaining <= 0) {
+        if (!timedOut.current) {
+          timedOut.current = true;
+          onTimeout();
+        }
+        return;
+      }
+      setSecondsRemaining(millisecondsRemaining <= sessionWarningMilliseconds ? Math.ceil(millisecondsRemaining / 1000) : null);
+    };
+    const activityEvents = ["pointerdown", "mousemove", "keydown", "scroll", "touchstart"];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetInactivity, { passive: true }));
+    const timer = window.setInterval(checkInactivity, 250);
+    checkInactivity();
+    return () => {
+      window.clearInterval(timer);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetInactivity));
+    };
+  }, [onTimeout]);
+
+  return <>{children}{secondsRemaining !== null && <div className="session-warning-backdrop" role="presentation"><section className="session-warning" role="alertdialog" aria-modal="true" aria-labelledby="session-warning-title" aria-describedby="session-warning-description"><div className="session-countdown" aria-live="assertive">{secondsRemaining}</div><div><p className="eyebrow">SESION INACTIVA</p><h2 id="session-warning-title">Tu sesión está por cerrarse</h2><p id="session-warning-description">Se cerrará en {secondsRemaining} {secondsRemaining === 1 ? "segundo" : "segundos"}. Usa la aplicación para continuar.</p></div></section></div>}</>;
+}
 
 function productImageSource(imageBase64) {
   if (!imageBase64) return null;
@@ -2554,6 +2591,12 @@ function App() {
   const [customer, setCustomer] = useState(null);
   const [view, setView] = useState("customer-access");
 
+  function closeSession() {
+    setAdminToken(null);
+    setCustomer(null);
+    setView("customer-access");
+  }
+
   useEffect(() => {
     const timers = new Map();
     const alertSelector = ".alert.alert-success, .alert.alert-danger";
@@ -2601,8 +2644,8 @@ function App() {
     };
   }, []);
 
-  if (customer) return <Shop customer={customer} onLogout={() => setCustomer(null)} />;
-  if (view === "admin-dashboard") return <AdminDashboard onLogout={() => setView("customer-access")} />;
+  if (customer) return <SessionInactivityGuard onTimeout={closeSession}><Shop customer={customer} onLogout={closeSession} /></SessionInactivityGuard>;
+  if (view === "admin-dashboard") return <SessionInactivityGuard onTimeout={closeSession}><AdminDashboard onLogout={closeSession} /></SessionInactivityGuard>;
   if (view === "admin-access") return <AdminAccess onLogin={() => setView("admin-dashboard")} onCustomerAccess={() => setView("customer-access")} />;
   return <Access onAccess={setCustomer} onAdminAccess={() => setView("admin-access")} />;
 }

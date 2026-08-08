@@ -139,6 +139,11 @@ button, input { font: inherit; }
 .category-notice { align-items: center; display: flex; gap: .55rem; }
 .category-notice .btn-close { margin-left: auto; }
 .modal-backdrop-custom { align-items: center; background: rgb(16 42 67 / 50%); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; z-index: 30; }
+.session-warning-backdrop { align-items: center; background: rgb(16 42 67 / 58%); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; z-index: 40; }
+.session-warning { align-items: center; background: #fff; border-left: 5px solid #d44b58; border-radius: 8px; box-shadow: 0 20px 50px rgb(16 42 67 / 30%); display: grid; gap: 1.25rem; grid-template-columns: 72px 1fr; max-width: 480px; padding: 1.5rem; width: 100%; }
+.session-warning h2 { font-size: 1.25rem; font-weight: 750; margin: 0 0 .45rem; }
+.session-warning p:last-child { color: var(--muted); margin: 0; }
+.session-countdown { align-items: center; background: #fff0ef; border: 1px solid #f6c7c2; border-radius: 6px; color: #b42318; display: flex; font-size: 1.8rem; font-variant-numeric: tabular-nums; font-weight: 800; height: 72px; justify-content: center; width: 72px; }
 .admin-app:has(.modal-backdrop-custom) .admin-content .alert-danger { left: 50%; max-width: min(650px, calc(100vw - 2rem)); position: fixed; top: 1rem; transform: translateX(-50%); width: 100%; z-index: 31; }
 .admin-app:has(.modal-backdrop-custom) .admin-content .alert-success { left: 50%; max-width: min(650px, calc(100vw - 2rem)); position: fixed; top: 1rem; transform: translateX(-50%); width: 100%; z-index: 31; }
 .admin-app:has(.order-detail-modal) .admin-content .alert-success, .admin-app:has(.order-detail-modal) .admin-content .alert-danger { display: none; }
