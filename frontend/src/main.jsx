@@ -16,6 +16,27 @@ function BrandMark() {
   return <span className="brand-mark"><img src="/santa-mena-logo.jpg" alt="Santa Mena" /></span>;
 }
 
+function OrderProduct({ line }) {
+  return <span className="order-product"><strong>{line.nombre_producto}</strong><small>{line.codigo_producto}</small></span>;
+}
+
+function QuantitySelector({ cantidad, onCantidadChange, permiteMediaUnidad = false }) {
+  const [halfMode, setHalfMode] = useState(false);
+  const step = halfMode ? 0.5 : 1;
+
+  function toggleHalfMode() {
+    if (halfMode) onCantidadChange(Math.ceil(Number(cantidad)));
+    setHalfMode(!halfMode);
+  }
+
+  return <div className="quantity-selector" role="group" aria-label="Selector de cantidad">
+    <button className="btn btn-outline-secondary" type="button" onClick={() => onCantidadChange(Math.max(0, Number(cantidad) - step))} aria-label={`Restar ${step}`}>-</button>
+    <output aria-live="polite">{Number(cantidad)}</output>
+    <button className="btn btn-outline-secondary" type="button" onClick={() => onCantidadChange(Number(cantidad) + step)} aria-label={`Sumar ${step}`}>+</button>
+    {permiteMediaUnidad && <button className={`btn half-unit-button ${halfMode ? "btn-primary" : "btn-outline-secondary"}`} type="button" onClick={toggleHalfMode} aria-pressed={halfMode} aria-label={halfMode ? "Modo media unidad" : "Permitir medias unidades"} title={halfMode ? "Modo media unidad" : "Permitir medias unidades"}>½</button>}
+  </div>;
+}
+
 function Access({ onAccess, onAdminAccess }) {
   const [identifier, setIdentifier] = useState("");
   const [error, setError] = useState("");
@@ -165,7 +186,16 @@ function ProductManagerLegacy({ categories }) {
 }
 
 function ProductManager({ categories }) {
-  const blankProduct = { categoria_id: "", codigo: "", nombre: "", precio: "", cantidad: "0", imagen_url: "", activo: true };
+  const blankProduct = {
+    categoria_id: "",
+    codigo: "",
+    nombre: "",
+    precio: "",
+    cantidad: "0",
+    imagen_url: "",
+    afecto: true,
+    activo: true,
+  };
   const [products, setProducts] = useState([]);
   const [totalProducts, setTotalProducts] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -179,12 +209,23 @@ function ProductManager({ categories }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const imageSource = (value) => value ? `data:image/jpeg;base64,${value}` : null;
-  const categoryName = (id) => categories.find((category) => category.id === id)?.nombre ?? "Sin categoría";
+  const imageSource = (value) =>
+    value ? `data:image/jpeg;base64,${value}` : null;
+  const categoryName = (id) =>
+    categories.find((category) => category.id === id)?.nombre ??
+    "Sin categoría";
 
   async function loadProducts() {
     try {
-      const { data } = await api.get("/admin/productos", { params: { category_id: selectedCategory || undefined, search: productSearch.trim() || undefined, stock_lt: stockThreshold === "" ? undefined : Number(stockThreshold), page, page_size: 10 } });
+      const { data } = await api.get("/admin/productos", {
+        params: {
+          category_id: selectedCategory || undefined,
+          search: productSearch.trim() || undefined,
+          stock_lt: stockThreshold === "" ? undefined : Number(stockThreshold),
+          page,
+          page_size: 10,
+        },
+      });
       setProducts(data.items);
       setTotalProducts(data.total);
     } catch {
@@ -208,7 +249,9 @@ function ProductManager({ categories }) {
     categorySelect.className = "form-select";
     categorySelect.setAttribute("aria-label", "Filtrar por categoría");
     categorySelect.append(new Option("Todas las categorías", ""));
-    categories.forEach((category) => categorySelect.append(new Option(category.nombre, category.id)));
+    categories.forEach((category) =>
+      categorySelect.append(new Option(category.nombre, category.id)),
+    );
     const searchField = document.createElement("div");
     searchField.className = "product-search";
     const searchInput = document.createElement("input");
@@ -226,7 +269,10 @@ function ProductManager({ categories }) {
     stockInput.className = "form-control";
     stockInput.type = "number";
     stockInput.placeholder = "Sin límite";
-    stockInput.setAttribute("aria-label", "Filtrar productos con stock menor a");
+    stockInput.setAttribute(
+      "aria-label",
+      "Filtrar productos con stock menor a",
+    );
     stockField.append(stockLabel, stockInput);
     filters.append(categorySelect, searchField, stockField);
     table.before(filters);
@@ -249,7 +295,10 @@ function ProductManager({ categories }) {
 
   useEffect(() => {
     document.querySelectorAll(".product-table .product-row").forEach((row) => {
-      row.children[3]?.classList.toggle("stock-critical", Number(row.children[3]?.textContent) <= 0);
+      row.children[3]?.classList.toggle(
+        "stock-critical",
+        Number(row.children[3]?.textContent) <= 0,
+      );
     });
   }, [products]);
 
@@ -273,7 +322,8 @@ function ProductManager({ categories }) {
     next.textContent = "Siguiente";
     next.disabled = page === totalPages;
     const goPrevious = () => setPage((current) => Math.max(1, current - 1));
-    const goNext = () => setPage((current) => Math.min(totalPages, current + 1));
+    const goNext = () =>
+      setPage((current) => Math.min(totalPages, current + 1));
     previous.addEventListener("click", goPrevious);
     next.addEventListener("click", goNext);
     pager.append(summary, previous, next);
@@ -291,7 +341,20 @@ function ProductManager({ categories }) {
 
   function openProduct(current = null) {
     setProduct(current);
-    setForm(current ? { ...current, precio: String(current.precio), cantidad: String(current.cantidad), imagen_url: current.imagen_url ?? "" } : { ...blankProduct, categoria_id: categories.find((category) => category.activo)?.id ?? "" });
+    setForm(
+      current
+        ? {
+            ...current,
+            precio: String(current.precio),
+            cantidad: String(current.cantidad),
+            imagen_url: current.imagen_url ?? "",
+          }
+        : {
+            ...blankProduct,
+            categoria_id:
+              categories.find((category) => category.activo)?.id ?? "",
+          },
+    );
     setError("");
   }
 
@@ -309,13 +372,20 @@ function ProductManager({ categories }) {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setField("imagen_url", String(reader.result).split(",")[1]);
+    reader.onload = () =>
+      setField("imagen_url", String(reader.result).split(",")[1]);
     reader.readAsDataURL(file);
   }
 
   async function saveProduct(event) {
     event.preventDefault();
-    const payload = { ...form, nombre: form.nombre.trim().toUpperCase(), precio: Number(form.precio), cantidad: Number(form.cantidad), imagen_url: form.imagen_url || null };
+    const payload = {
+      ...form,
+      nombre: form.nombre.trim().toUpperCase(),
+      precio: Number(form.precio),
+      cantidad: Number(form.cantidad),
+      imagen_url: form.imagen_url || null,
+    };
     if (!payload.categoria_id) {
       setError("Selecciona una categoría.");
       return;
@@ -334,17 +404,328 @@ function ProductManager({ categories }) {
       setError("");
       await loadProducts();
     } catch {
-      setError("No fue posible guardar el producto. Revisa sus datos y el código.");
+      setError(
+        "No fue posible guardar el producto. Revisa sus datos y el código.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Productos</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de Productos</span><button className="btn btn-primary" onClick={() => openProduct()}><Plus size={18} />Nuevo producto</button></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">INVENTARIO</p><h2>Controla tus Productos</h2><p>Gestiona precios, disponibilidad y stock para los pedidos de clientes.</p></div><div className="summary-metric"><span>{products.length}</span><small>Productos registrados</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de productos</h2><p>Productos activos e inactivos del catálogo.</p></div><span className="panel-count">{products.length} registros</span></div>{notice && <div className="alert alert-success alert-dismissible fade show mt-3 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando productos...</p> : <div className="product-table mt-4"><div className="product-table-head"><span>Producto</span><span className="d-none d-md-block">Categoría</span><span>Precio</span><span>Stock</span><span>Estado</span><span>Acciones</span></div>{products.map((item) => <div className="product-row" key={item.id}><div className="product-name"><span className="product-thumb">{imageSource(item.imagen_url) ? <img src={imageSource(item.imagen_url)} alt="" /> : <Package size={18} />}</span><div><strong>{item.nombre}</strong><small>{item.codigo}</small></div></div><span className="d-none d-md-block product-category">{categoryName(item.categoria_id)}</span><strong>{money.format(item.precio)}</strong><span>{item.cantidad}</span><span className={item.activo ? "status-active" : "status-inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><button className="icon-button category-edit" onClick={() => openProduct(item)} aria-label={`Editar ${item.nombre}`}><Pencil size={16} /></button></div>)}</div>}</section></div>{(product || form.categoria_id) && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveProduct}><header><div><p className="eyebrow">CATALOGO</p><h2>{product ? "Editar producto" : "Nuevo producto"}</h2></div><button type="button" className="icon-button" onClick={() => { setProduct(null); setForm(blankProduct); }}><X size={19} /></button></header><div className="modal-body-custom"><div className="product-form-grid"><div className="product-form-wide"><label className="form-label" htmlFor="product-category-base64">Categoría</label><select id="product-category-base64" className="form-select" value={form.categoria_id} onChange={(event) => setField("categoria_id", event.target.value)} required><option value="">Selecciona una categoría</option>{categories.filter((category) => category.activo || category.id === form.categoria_id).map((category) => <option key={category.id} value={category.id}>{category.nombre}</option>)}</select></div><div><label className="form-label" htmlFor="product-code-base64">Código</label><input id="product-code-base64" className="form-control" value={form.codigo} onChange={(event) => setField("codigo", event.target.value)} required /></div><div><label className="form-label" htmlFor="product-stock-base64">Stock</label><input id="product-stock-base64" className="form-control" type="number" min="0" value={form.cantidad} onChange={(event) => setField("cantidad", event.target.value)} required /></div><div className="product-form-wide"><label className="form-label" htmlFor="product-name-base64">Nombre</label><input id="product-name-base64" className="form-control" value={form.nombre} onChange={(event) => setField("nombre", event.target.value.toUpperCase())} required /></div><div><label className="form-label" htmlFor="product-price-base64">Precio base</label><input id="product-price-base64" className="form-control" type="number" min="1" value={form.precio} onChange={(event) => setField("precio", event.target.value)} required /></div><div><label className="form-label" htmlFor="product-image-base64">Imagen JPG</label><input id="product-image-base64" className="form-control" type="file" accept=".jpg,.jpeg,image/jpeg" onChange={attachImage} /><small className="form-text">Solo JPG, máximo 5 MB. Se guarda en Base64.</small></div></div>{imageSource(form.imagen_url) && <div className="image-preview"><img src={imageSource(form.imagen_url)} alt="Vista previa" /><button className="btn btn-link btn-sm" type="button" onClick={() => setField("imagen_url", "")}>Quitar imagen</button></div>}<div className="status-toggle"><div><strong>Producto disponible</strong><small>Los productos inactivos no aparecen a los clientes.</small></div><label className="switch"><input type="checkbox" checked={form.activo} onChange={(event) => setField("activo", event.target.checked)} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => { setProduct(null); setForm(blankProduct); }}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar producto</>}</button></footer></form></div>}</>;
+  return (
+    <>
+      <header className="admin-topbar">
+        <div className="topbar-title">
+          <p className="eyebrow mb-1">CATALOGO</p>
+          <h1>Productos</h1>
+        </div>
+        <div className="topbar-actions">
+          <span className="topbar-date d-none d-sm-inline">
+            Gestión de Productos
+          </span>
+          <button className="btn btn-primary" onClick={() => openProduct()}>
+            <Plus size={18} />
+            Nuevo producto
+          </button>
+        </div>
+      </header>
+      <div className="admin-content">
+        <section className="admin-summary">
+          <div>
+            <p className="eyebrow">INVENTARIO</p>
+            <h2>Controla tus Productos</h2>
+            <p>
+              Gestiona precios, disponibilidad y stock para los pedidos de
+              clientes.
+            </p>
+          </div>
+          <div className="summary-metric">
+            <span>{products.length}</span>
+            <small>Productos registrados</small>
+          </div>
+        </section>
+        <section className="content-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Listado de productos</h2>
+              <p>Productos activos e inactivos del catálogo.</p>
+            </div>
+            <span className="panel-count">{products.length} registros</span>
+          </div>
+          {notice && (
+            <div className="alert alert-success alert-dismissible fade show mt-3 category-notice">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button
+                className="btn-close"
+                type="button"
+                onClick={() => setNotice("")}
+              />
+            </div>
+          )}
+          {error && <div className="alert alert-danger mt-3">{error}</div>}
+          {loading ? (
+            <p className="mt-4 text-secondary">Cargando productos...</p>
+          ) : (
+            <div className="product-table mt-4">
+              <div className="product-table-head">
+                <span>Producto</span>
+                <span className="d-none d-md-block">Categoría</span>
+                <span>Precio</span>
+                <span>Stock</span>
+                <span>Tributación</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
+              {products.map((item) => (
+                <div className="product-row" key={item.id}>
+                  <div className="product-name">
+                    <span className="product-thumb">
+                      {imageSource(item.imagen_url) ? (
+                        <img src={imageSource(item.imagen_url)} alt="" />
+                      ) : (
+                        <Package size={18} />
+                      )}
+                    </span>
+                    <div>
+                      <strong>{item.nombre}</strong>
+                      <small>{item.codigo}</small>
+                    </div>
+                  </div>
+                  <span className="d-none d-md-block product-category">
+                    {categoryName(item.categoria_id)}
+                  </span>
+                  <strong>{money.format(item.precio)}</strong>
+                  <span>{Number(item.cantidad)}</span>
+                  <span className={item.afecto ? "tax-status tax-status-taxable" : "tax-status tax-status-exempt"}>
+                    {item.afecto ? "Afecto" : "Exento"}
+                  </span>
+                  <span
+                    className={
+                      item.activo ? "status-active" : "status-inactive"
+                    }
+                  >
+                    {item.activo ? "Activo" : "Inactivo"}
+                  </span>
+                  <button
+                    className="icon-button category-edit"
+                    onClick={() => openProduct(item)}
+                    aria-label={`Editar ${item.nombre}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+      {(product || form.categoria_id) && (
+        <div className="modal-backdrop-custom">
+          <form className="category-modal product-modal" onSubmit={saveProduct}>
+            <header>
+              <div>
+                <p className="eyebrow">CATALOGO</p>
+                <h2>{product ? "Editar producto" : "Nuevo producto"}</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => {
+                  setProduct(null);
+                  setForm(blankProduct);
+                }}
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              <div className="product-form-grid">
+                <div className="product-form-wide">
+                  <label
+                    className="form-label"
+                    htmlFor="product-category-base64"
+                  >
+                    Categoría
+                  </label>
+                  <select
+                    id="product-category-base64"
+                    className="form-select"
+                    value={form.categoria_id}
+                    onChange={(event) =>
+                      setField("categoria_id", event.target.value)
+                    }
+                    required
+                  >
+                    <option value="">Selecciona una categoría</option>
+                    {categories
+                      .filter(
+                        (category) =>
+                          category.activo || category.id === form.categoria_id,
+                      )
+                      .map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="product-code-base64">
+                    Código
+                  </label>
+                  <input
+                    id="product-code-base64"
+                    className="form-control"
+                    value={form.codigo}
+                    onChange={(event) => setField("codigo", event.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="product-stock-base64">
+                    Stock
+                  </label>
+                  <input
+                    id="product-stock-base64"
+                    className="form-control"
+                    type="number"
+                    step="0.5"
+                    value={form.cantidad}
+                    onChange={(event) =>
+                      setField("cantidad", event.target.value)
+                    }
+                    required
+                  />
+                </div>
+                <div className="product-form-wide">
+                  <label className="form-label" htmlFor="product-name-base64">
+                    Nombre
+                  </label>
+                  <input
+                    id="product-name-base64"
+                    className="form-control"
+                    value={form.nombre}
+                    onChange={(event) =>
+                      setField("nombre", event.target.value.toUpperCase())
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="product-price-base64">
+                    Precio base
+                  </label>
+                  <input
+                    id="product-price-base64"
+                    className="form-control"
+                    type="number"
+                    min="1"
+                    value={form.precio}
+                    onChange={(event) => setField("precio", event.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="product-tax-status">
+                    Condición tributaria
+                  </label>
+                  <select
+                    id="product-tax-status"
+                    className="form-select"
+                    value={form.afecto ? "afecto" : "exento"}
+                    onChange={(event) =>
+                      setField("afecto", event.target.value === "afecto")
+                    }
+                  >
+                    <option value="afecto">Afecto</option>
+                    <option value="exento">Exento</option>
+                  </select>
+                </div>
+                <div className="product-form-wide">
+                  <label className="form-label" htmlFor="product-image-base64">
+                    Imagen JPG
+                  </label>
+                  <input
+                    id="product-image-base64"
+                    className="form-control"
+                    type="file"
+                    accept=".jpg,.jpeg,image/jpeg"
+                    onChange={attachImage}
+                  />
+                  <small className="form-text">
+                    Solo JPG, máximo 5 MB. Se guarda en Base64.
+                  </small>
+                </div>
+              </div>
+              {imageSource(form.imagen_url) && (
+                <div className="image-preview">
+                  <img src={imageSource(form.imagen_url)} alt="Vista previa" />
+                  <button
+                    className="btn btn-link btn-sm"
+                    type="button"
+                    onClick={() => setField("imagen_url", "")}
+                  >
+                    Quitar imagen
+                  </button>
+                </div>
+              )}
+              <div className="status-toggle">
+                <div>
+                  <strong>Producto disponible</strong>
+                  <small>
+                    Los productos inactivos no aparecen a los clientes.
+                  </small>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={form.activo}
+                    onChange={(event) =>
+                      setField("activo", event.target.checked)
+                    }
+                  />
+                  <span />
+                </label>
+              </div>
+            </div>
+            <footer>
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={() => {
+                  setProduct(null);
+                  setForm(blankProduct);
+                }}
+              >
+                Cancelar
+              </button>
+              <button className="btn btn-primary" disabled={saving}>
+                {saving ? (
+                  "Guardando..."
+                ) : (
+                  <>
+                    <Save size={17} />
+                    Guardar producto
+                  </>
+                )}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+    </>
+  );
 }
 
 function UserManager() {
-  const blankUser = { nombre: "", correo: "", password: "", rol_id: "", activo: true };
+  const blankUser = {
+    nombre: "",
+    correo: "",
+    password: "",
+    rol_id: "",
+    activo: true,
+  };
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [user, setUser] = useState(null);
@@ -356,7 +737,10 @@ function UserManager() {
 
   async function loadUsers() {
     try {
-      const [{ data: userData }, { data: roleData }] = await Promise.all([api.get("/usuarios"), api.get("/roles")]);
+      const [{ data: userData }, { data: roleData }] = await Promise.all([
+        api.get("/usuarios"),
+        api.get("/roles"),
+      ]);
       setUsers(userData);
       setRoles(roleData);
     } catch {
@@ -366,7 +750,9 @@ function UserManager() {
     }
   }
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   function setField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -374,7 +760,17 @@ function UserManager() {
 
   function openUser(current = null) {
     setUser(current);
-    setForm(current ? { nombre: current.nombre, correo: current.correo, password: "", rol_id: current.rol_id, activo: current.activo } : { ...blankUser, rol_id: roles[0]?.id ?? "" });
+    setForm(
+      current
+        ? {
+            nombre: current.nombre,
+            correo: current.correo,
+            password: "",
+            rol_id: current.rol_id,
+            activo: current.activo,
+          }
+        : { ...blankUser, rol_id: roles[0]?.id ?? "" },
+    );
     setError("");
   }
 
@@ -385,7 +781,11 @@ function UserManager() {
       return;
     }
     setSaving(true);
-    const payload = { ...form, nombre: form.nombre.trim(), correo: form.correo.trim() };
+    const payload = {
+      ...form,
+      nombre: form.nombre.trim(),
+      correo: form.correo.trim(),
+    };
     if (user && !payload.password) delete payload.password;
     try {
       if (user) {
@@ -400,13 +800,236 @@ function UserManager() {
       setError("");
       await loadUsers();
     } catch (requestError) {
-      setError(requestError.response?.data?.detail ?? "No fue posible guardar el usuario. Revisa el correo y los datos ingresados.");
+      setError(
+        requestError.response?.data?.detail ??
+          "No fue posible guardar el usuario. Revisa el correo y los datos ingresados.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CONFIGURACION</p><h1>Usuarios</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de usuarios</span><button className="btn btn-primary" onClick={() => openUser()}><Plus size={18} />Nuevo usuario</button></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">ACCESOS</p><h2>Administra tus usuarios</h2><p>Controla los accesos, roles y estado de cada cuenta.</p></div><div className="summary-metric"><span>{users.length}</span><small>Usuarios registrados</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de usuarios</h2><p>Usuarios activos e inactivos de la plataforma.</p></div><span className="panel-count">{users.length} registros</span></div>{notice && <div className="alert alert-success alert-dismissible fade show mt-3 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando usuarios...</p> : <div className="user-table mt-4"><div className="user-table-head"><span>Usuario</span><span>Rol</span><span>Estado</span><span>Acciones</span></div>{users.length ? users.map((item) => <div className="user-row" key={item.id}><div className="user-name"><span className="user-avatar">{item.nombre.slice(0, 2).toUpperCase()}</span><div><strong>{item.nombre}</strong><small>{item.correo}</small></div></div><span className="user-role">{item.rol.nombre}</span><span className={item.activo ? "status-active" : "status-inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><button className="icon-button category-edit" onClick={() => openUser(item)} aria-label={`Editar ${item.nombre}`}><Pencil size={16} /></button></div>) : <p className="text-secondary p-4 mb-0">Aún no hay usuarios registrados.</p>}</div>}</section></div>{(user || form.rol_id) && <div className="modal-backdrop-custom"><form className="category-modal" onSubmit={saveUser}><header><div><p className="eyebrow">CONFIGURACION</p><h2>{user ? "Editar usuario" : "Nuevo usuario"}</h2></div><button type="button" className="icon-button" onClick={() => { setUser(null); setForm(blankUser); }} aria-label="Cerrar formulario"><X size={19} /></button></header><div className="modal-body-custom"><label className="form-label" htmlFor="user-name">Nombre</label><input id="user-name" className="form-control" value={form.nombre} onChange={(event) => setField("nombre", event.target.value)} maxLength="150" required autoFocus /><label className="form-label mt-3" htmlFor="user-email">Correo</label><input id="user-email" className="form-control" type="email" value={form.correo} onChange={(event) => setField("correo", event.target.value)} required /><label className="form-label mt-3" htmlFor="user-password">{user ? "Nueva clave" : "Clave"}</label><input id="user-password" className="form-control" type="password" value={form.password} onChange={(event) => setField("password", event.target.value)} minLength="8" required={!user} />{user && <small className="form-text">Déjala vacía para mantener la clave actual.</small>}<label className="form-label mt-3" htmlFor="user-role">Rol</label><select id="user-role" className="form-select" value={form.rol_id} onChange={(event) => setField("rol_id", event.target.value)} required><option value="">Selecciona un rol</option>{roles.map((role) => <option key={role.id} value={role.id}>{role.nombre}</option>)}</select><div className="status-toggle"><div><strong>Usuario activo</strong><small>Los usuarios inactivos no pueden iniciar sesión.</small></div><label className="switch"><input type="checkbox" checked={form.activo} onChange={(event) => setField("activo", event.target.checked)} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => { setUser(null); setForm(blankUser); }}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar usuario</>}</button></footer></form></div>}</>;
+  return (
+    <>
+      <header className="admin-topbar">
+        <div className="topbar-title">
+          <p className="eyebrow mb-1">CONFIGURACION</p>
+          <h1>Usuarios</h1>
+        </div>
+        <div className="topbar-actions">
+          <span className="topbar-date d-none d-sm-inline">
+            Gestión de usuarios
+          </span>
+          <button className="btn btn-primary" onClick={() => openUser()}>
+            <Plus size={18} />
+            Nuevo usuario
+          </button>
+        </div>
+      </header>
+      <div className="admin-content">
+        <section className="admin-summary">
+          <div>
+            <p className="eyebrow">ACCESOS</p>
+            <h2>Administra tus usuarios</h2>
+            <p>Controla los accesos, roles y estado de cada cuenta.</p>
+          </div>
+          <div className="summary-metric">
+            <span>{users.length}</span>
+            <small>Usuarios registrados</small>
+          </div>
+        </section>
+        <section className="content-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Listado de usuarios</h2>
+              <p>Usuarios activos e inactivos de la plataforma.</p>
+            </div>
+            <span className="panel-count">{users.length} registros</span>
+          </div>
+          {notice && (
+            <div className="alert alert-success alert-dismissible fade show mt-3 category-notice">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button
+                className="btn-close"
+                type="button"
+                onClick={() => setNotice("")}
+              />
+            </div>
+          )}
+          {error && <div className="alert alert-danger mt-3">{error}</div>}
+          {loading ? (
+            <p className="mt-4 text-secondary">Cargando usuarios...</p>
+          ) : (
+            <div className="user-table mt-4">
+              <div className="user-table-head">
+                <span>Usuario</span>
+                <span>Rol</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
+              {users.length ? (
+                users.map((item) => (
+                  <div className="user-row" key={item.id}>
+                    <div className="user-name">
+                      <span className="user-avatar">
+                        {item.nombre.slice(0, 2).toUpperCase()}
+                      </span>
+                      <div>
+                        <strong>{item.nombre}</strong>
+                        <small>{item.correo}</small>
+                      </div>
+                    </div>
+                    <span className="user-role">{item.rol.nombre}</span>
+                    <span
+                      className={
+                        item.activo ? "status-active" : "status-inactive"
+                      }
+                    >
+                      {item.activo ? "Activo" : "Inactivo"}
+                    </span>
+                    <button
+                      className="icon-button category-edit"
+                      onClick={() => openUser(item)}
+                      aria-label={`Editar ${item.nombre}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-secondary p-4 mb-0">
+                  Aún no hay usuarios registrados.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+      {(user || form.rol_id) && (
+        <div className="modal-backdrop-custom">
+          <form className="category-modal" onSubmit={saveUser}>
+            <header>
+              <div>
+                <p className="eyebrow">CONFIGURACION</p>
+                <h2>{user ? "Editar usuario" : "Nuevo usuario"}</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => {
+                  setUser(null);
+                  setForm(blankUser);
+                }}
+                aria-label="Cerrar formulario"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              <label className="form-label" htmlFor="user-name">
+                Nombre
+              </label>
+              <input
+                id="user-name"
+                className="form-control"
+                value={form.nombre}
+                onChange={(event) => setField("nombre", event.target.value)}
+                maxLength="150"
+                required
+                autoFocus
+              />
+              <label className="form-label mt-3" htmlFor="user-email">
+                Correo
+              </label>
+              <input
+                id="user-email"
+                className="form-control"
+                type="email"
+                value={form.correo}
+                onChange={(event) => setField("correo", event.target.value)}
+                required
+              />
+              <label className="form-label mt-3" htmlFor="user-password">
+                {user ? "Nueva clave" : "Clave"}
+              </label>
+              <input
+                id="user-password"
+                className="form-control"
+                type="password"
+                value={form.password}
+                onChange={(event) => setField("password", event.target.value)}
+                minLength="8"
+                required={!user}
+              />
+              {user && (
+                <small className="form-text">
+                  Déjala vacía para mantener la clave actual.
+                </small>
+              )}
+              <label className="form-label mt-3" htmlFor="user-role">
+                Rol
+              </label>
+              <select
+                id="user-role"
+                className="form-select"
+                value={form.rol_id}
+                onChange={(event) => setField("rol_id", event.target.value)}
+                required
+              >
+                <option value="">Selecciona un rol</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.nombre}
+                  </option>
+                ))}
+              </select>
+              <div className="status-toggle">
+                <div>
+                  <strong>Usuario activo</strong>
+                  <small>
+                    Los usuarios inactivos no pueden iniciar sesión.
+                  </small>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={form.activo}
+                    onChange={(event) =>
+                      setField("activo", event.target.checked)
+                    }
+                  />
+                  <span />
+                </label>
+              </div>
+            </div>
+            <footer>
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={() => {
+                  setUser(null);
+                  setForm(blankUser);
+                }}
+              >
+                Cancelar
+              </button>
+              <button className="btn btn-primary" disabled={saving}>
+                {saving ? (
+                  "Guardando..."
+                ) : (
+                  <>
+                    <Save size={17} />
+                    Guardar usuario
+                  </>
+                )}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+    </>
+  );
 }
 
 function CustomerManagerLegacy() {
@@ -598,7 +1221,7 @@ function CustomerManager() {
 function AdminOrderManager() {
   const [orders, setOrders] = useState([]);
   const [states, setStates] = useState([]);
-  const [filters, setFilters] = useState({ estado: "Pedido", codigo: "", desde: "", hasta: "" });
+  const [filters, setFilters] = useState({ estado: "Pedido", codigo: "", cliente: "", desde: "", hasta: "" });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
   const [error, setError] = useState("");
@@ -607,6 +1230,7 @@ function AdminOrderManager() {
   const [updatingState, setUpdatingState] = useState(false);
   const [deliveryPayment, setDeliveryPayment] = useState(null);
   const [creditDays, setCreditDays] = useState("");
+  const [creditOrder, setCreditOrder] = useState(null);
 
   async function loadOrders() {
     try {
@@ -639,8 +1263,8 @@ function AdminOrderManager() {
       setError("Indica si el cliente pagó el pedido.");
       return;
     }
-    if (confirmation.nextState === "Entregado" && !deliveryPayment && (!Number.isInteger(Number(creditDays)) || Number(creditDays) < 1)) {
-      setError("Indica una cantidad válida de días de crédito.");
+    if (confirmation.nextState === "Entregado" && !deliveryPayment && (!Number.isInteger(Number(creditDays)) || Number(creditDays) < 1 || Number(creditDays) > 365)) {
+      setError("Indica una cantidad válida de días de crédito entre 1 y 365.");
       return;
     }
     setUpdatingState(true);
@@ -661,6 +1285,29 @@ function AdminOrderManager() {
     } catch (requestError) {
       setError(requestError.response?.data?.detail ?? "No fue posible actualizar el estado del pedido.");
       setConfirmation(null);
+    } finally {
+      setUpdatingState(false);
+    }
+  }
+
+  async function assignOrderCredit() {
+    if (!creditOrder || !Number.isInteger(Number(creditDays)) || Number(creditDays) < 1 || Number(creditDays) > 365) {
+      setError("Indica una cantidad válida de días de crédito entre 1 y 365.");
+      return;
+    }
+    setUpdatingState(true);
+    try {
+      const { data } = await api.post(`/pedidos/${creditOrder.id}/credito`, {
+        dias_credito: Number(creditDays),
+      });
+      setOrders((current) => current.map((order) => order.id === data.id ? data : order));
+      setSelectedOrder(data);
+      setNotice(`Crédito asignado al pedido ${data.id.slice(0, 8).toUpperCase()}.`);
+      setError("");
+      setCreditOrder(null);
+      setCreditDays("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible asignar el crédito al pedido.");
     } finally {
       setUpdatingState(false);
     }
@@ -723,17 +1370,501 @@ function AdminOrderManager() {
 
   const visibleOrders = orders.filter((order) => {
     const code = filters.codigo.trim().toUpperCase();
+    const customerName = filters.cliente.trim().toLocaleUpperCase("es-CL");
     const createdAt = order.created_at ? new Date(order.created_at) : null;
     const from = filters.desde ? new Date(`${filters.desde}T00:00:00`) : null;
     const to = filters.hasta ? new Date(`${filters.hasta}T23:59:59.999`) : null;
     return order.estado.nombre === filters.estado
       && (!code || order.id.slice(0, 8).toUpperCase().includes(code))
+      && (!customerName || (order.cliente.nombre ?? "").toLocaleUpperCase("es-CL").includes(customerName))
       && (!from || (createdAt && createdAt >= from))
       && (!to || (createdAt && createdAt <= to));
   });
 
   const dateFormatter = new Intl.DateTimeFormat("es-CL", { dateStyle: "short", timeStyle: "short" });
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">OPERACION</p><h1>Pedidos</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Seguimiento de pedidos</span></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">PEDIDOS</p><h2>Controla todos los pedidos</h2><p>Consulta solicitudes de todos tus clientes y revisa su detalle.</p></div><div className="summary-metric"><span>{visibleOrders.length}</span><small>Pedidos visibles</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de pedidos</h2><p>Filtra por estado, código de pedido o rango de fechas.</p></div><span className="panel-count">{visibleOrders.length} pedidos</span></div><div className="order-history-filters"><label>Estado<select className="form-select" value={filters.estado} onChange={(event) => setFilters((current) => ({ ...current, estado: event.target.value }))}><option>Pedido</option><option>Despachado</option><option>Entregado</option><option>Cancelado</option></select></label><label>Pedido<input className="form-control" type="search" placeholder="Ej. 4CB969B1" value={filters.codigo} onChange={(event) => setFilters((current) => ({ ...current, codigo: event.target.value }))} /></label><label>Desde<input className="form-control" type="date" value={filters.desde} onChange={(event) => setFilters((current) => ({ ...current, desde: event.target.value }))} /></label><label>Hasta<input className="form-control" type="date" value={filters.hasta} onChange={(event) => setFilters((current) => ({ ...current, hasta: event.target.value }))} /></label></div>{notice && <div className="alert alert-success mt-3 mb-0 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando pedidos...</p> : <div className="admin-order-table mt-4"><div className="admin-order-head"><span>Pedido</span><span>Cliente</span><span>Fecha</span><span>Estado</span><span>Total</span><span>Acciones</span></div>{visibleOrders.map((order) => <article className="admin-order-row" key={order.id}><div><strong>Pedido {order.id.slice(0, 8).toUpperCase()}</strong><small>{order.detalles.length} productos</small></div><div><strong>{order.cliente.nombre || order.cliente.rut || order.cliente.celular || "Cliente"}</strong><small>{order.cliente.rut || order.cliente.celular || "Sin identificador"}</small></div><span>{order.created_at ? dateFormatter.format(new Date(order.created_at)) : "-"}</span><span className={`order-status order-${order.estado.nombre.toLowerCase()}`}>{order.estado.nombre}</span><strong>{money.format(order.total)}</strong><button className="icon-button category-edit" type="button" onClick={() => setSelectedOrder(order)} aria-label={`Ver detalle del pedido ${order.id.slice(0, 8).toUpperCase()}`}><Eye size={16} /></button></article>)}{!visibleOrders.length && <p className="history-filter-empty">No hay pedidos que coincidan con los filtros.</p>}</div>}</section></div>{selectedOrder && <div className="modal-backdrop-custom"><section className="category-modal product-modal order-detail-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">PEDIDO</p><h2>Detalle del pedido</h2></div><button className="icon-button" type="button" onClick={() => setSelectedOrder(null)} aria-label="Cerrar detalle"><X size={19} /></button></header><div className="modal-body-custom"><div className="order-detail-meta"><span>Pedido {selectedOrder.id.slice(0, 8).toUpperCase()}</span><span>{selectedOrder.cliente.nombre || selectedOrder.cliente.rut || "Cliente"}</span><span>{selectedOrder.created_at ? dateFormatter.format(new Date(selectedOrder.created_at)) : ""}</span></div><div className="order-detail-lines"><div><span>Producto</span><span>Cantidad</span><span>Precio</span><span>Subtotal</span></div>{selectedOrder.detalles.map((line) => <div key={line.producto_id}><span>{line.nombre_producto}</span><span>{line.cantidad}</span><span>{money.format(line.precio_unitario)}</span><strong>{money.format(line.subtotal)}</strong></div>)}</div><div className="order-detail-total"><strong>Total</strong><strong>{money.format(selectedOrder.total)}</strong></div></div><footer><div className="order-state-actions">{availableTransitions(selectedOrder).map((nextState) => <button className={nextState === "Cancelado" ? "btn btn-outline-danger" : "btn btn-primary"} type="button" key={nextState} onClick={() => { setDeliveryPayment(null); setCreditDays(""); setConfirmation({ order: selectedOrder, nextState }); }}>{nextState === "Despachado" ? "Despachar" : nextState === "Entregado" ? "Entregar" : "Cancelar pedido"}</button>)}</div><button className="btn btn-light" type="button" onClick={() => setSelectedOrder(null)}>Cerrar</button></footer></section></div>}{confirmation && <div className="modal-backdrop-custom"><section className="category-modal confirmation-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">CONFIRMAR ACCION</p><h2>{confirmation.nextState === "Entregado" ? "¿Cliente pagó su pedido?" : "¿Cambiar estado del pedido?"}</h2></div><button className="icon-button" type="button" onClick={() => setConfirmation(null)} aria-label="Cerrar confirmación"><X size={19} /></button></header><div className="modal-body-custom"><p>El pedido <strong>{confirmation.order.id.slice(0, 8).toUpperCase()}</strong> cambiará de <strong>{confirmation.order.estado.nombre}</strong> a <strong>{confirmation.nextState}</strong>.</p>{confirmation.nextState === "Entregado" ? <><div className="payment-choice"><button type="button" className={deliveryPayment === true ? "btn btn-primary" : "btn btn-outline-primary"} onClick={() => { setDeliveryPayment(true); setCreditDays(""); }}>Sí, pagó</button><button type="button" className={deliveryPayment === false ? "btn btn-primary" : "btn btn-outline-primary"} onClick={() => setDeliveryPayment(false)}>No, queda a crédito</button></div>{deliveryPayment === false && <div className="mt-3"><label className="form-label" htmlFor="credit-days">Días de crédito</label><input id="credit-days" className="form-control" type="number" min="1" step="1" value={creditDays} onChange={(event) => setCreditDays(event.target.value)} required autoFocus /><small className="form-text">El vencimiento se calcula desde la fecha de entrega.</small></div>}</> : <p className="mb-0">Esta acción actualizará el estado visible para el cliente.</p>}</div><footer><button className="btn btn-light" type="button" disabled={updatingState} onClick={() => setConfirmation(null)}>Volver</button><button className={confirmation.nextState === "Cancelado" ? "btn btn-danger" : "btn btn-primary"} type="button" disabled={updatingState} onClick={changeOrderStatus}>{updatingState ? "Actualizando..." : confirmation.nextState === "Entregado" ? "Finalizar entrega" : "Confirmar cambio"}</button></footer></section></div>}</>;
+  return (
+    <>
+      <header className="admin-topbar">
+        <div className="topbar-title">
+          <p className="eyebrow mb-1">OPERACION</p>
+          <h1>Pedidos</h1>
+        </div>
+        <div className="topbar-actions">
+          <span className="topbar-date d-none d-sm-inline">
+            Seguimiento de pedidos
+          </span>
+        </div>
+      </header>
+      <div className="admin-content">
+        <section className="admin-summary">
+          <div>
+            <p className="eyebrow">PEDIDOS</p>
+            <h2>Controla todos los pedidos</h2>
+            <p>
+              Consulta solicitudes de todos tus clientes y revisa su detalle.
+            </p>
+          </div>
+          <div className="summary-metric">
+            <span>{visibleOrders.length}</span>
+            <small>Pedidos visibles</small>
+          </div>
+        </section>
+        <section className="content-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Listado de pedidos</h2>
+              <p>Filtra por estado, pedido, cliente o rango de fechas.</p>
+            </div>
+            <span className="panel-count">{visibleOrders.length} pedidos</span>
+          </div>
+          <div className="order-history-filters admin-order-filters">
+            <label>
+              Estado
+              <select
+                className="form-select"
+                value={filters.estado}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    estado: event.target.value,
+                  }))
+                }
+              >
+                <option>Pedido</option>
+                <option>Despachado</option>
+                <option>Entregado</option>
+                <option>Cancelado</option>
+              </select>
+            </label>
+            <label>
+              Pedido
+              <input
+                className="form-control"
+                type="search"
+                placeholder="Ej. 4CB969B1"
+                value={filters.codigo}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    codigo: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Cliente
+              <input
+                className="form-control"
+                type="search"
+                placeholder="Nombre del cliente"
+                value={filters.cliente}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    cliente: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Desde
+              <input
+                className="form-control"
+                type="date"
+                value={filters.desde}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    desde: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Hasta
+              <input
+                className="form-control"
+                type="date"
+                value={filters.hasta}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    hasta: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+          {notice && (
+            <div className="alert alert-success mt-3 mb-0 category-notice">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button
+                className="btn-close"
+                type="button"
+                onClick={() => setNotice("")}
+              />
+            </div>
+          )}
+          {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
+          {loading ? (
+            <p className="mt-4 text-secondary">Cargando pedidos...</p>
+          ) : (
+            <div className="admin-order-table mt-4">
+              <div className="admin-order-head">
+                <span>Pedido</span>
+                <span>Cliente</span>
+                <span>Fecha</span>
+                <span>Estado</span>
+                <span>Total</span>
+                <span>Acciones</span>
+              </div>
+              {visibleOrders.map((order) => (
+                <article className="admin-order-row" key={order.id}>
+                  <div>
+                    <strong>Pedido {order.id.slice(0, 8).toUpperCase()}</strong>
+                    <small>{order.detalles.length} productos</small>
+                  </div>
+                  <div>
+                    <strong>
+                      {order.cliente.nombre ||
+                        order.cliente.rut ||
+                        order.cliente.celular ||
+                        "Cliente"}
+                    </strong>
+                    <small>
+                      {order.cliente.rut ||
+                        order.cliente.celular ||
+                        "Sin identificador"}
+                    </small>
+                  </div>
+                  <span>
+                    {order.created_at
+                      ? dateFormatter.format(new Date(order.created_at))
+                      : "-"}
+                  </span>
+                  <span
+                    className={`order-status order-${order.estado.nombre.toLowerCase()}`}
+                  >
+                    {order.estado.nombre}
+                  </span>
+                  <strong>{money.format(order.total)}</strong>
+                  <button
+                    className="icon-button category-edit"
+                    type="button"
+                    onClick={() => setSelectedOrder(order)}
+                    aria-label={`Ver detalle del pedido ${order.id.slice(0, 8).toUpperCase()}`}
+                  >
+                    <Eye size={16} />
+                  </button>
+                </article>
+              ))}
+              {!visibleOrders.length && (
+                <p className="history-filter-empty">
+                  No hay pedidos que coincidan con los filtros.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+      {selectedOrder && (
+        <div className="modal-backdrop-custom">
+          <section
+            className="category-modal product-modal order-detail-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <header>
+              <div>
+                <p className="eyebrow">PEDIDO</p>
+                <h2>Detalle del pedido</h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                aria-label="Cerrar detalle"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              <div className="order-detail-meta">
+                <span>Pedido {selectedOrder.id.slice(0, 8).toUpperCase()}</span>
+                <span>
+                  {selectedOrder.cliente.nombre ||
+                    selectedOrder.cliente.rut ||
+                    "Cliente"}
+                </span>
+                <span>
+                  {selectedOrder.created_at
+                    ? dateFormatter.format(new Date(selectedOrder.created_at))
+                    : ""}
+                </span>
+              </div>
+              <div className="order-detail-lines">
+                <div>
+                  <span>Producto</span>
+                  <span>Tributación</span>
+                  <span>Cantidad</span>
+                  <span>Precio</span>
+                  <span>Subtotal</span>
+                </div>
+                {selectedOrder.detalles.map((line) => (
+                  <div key={line.producto_id}>
+                    <OrderProduct line={line} />
+                    <span className={line.afecto ? "tax-status tax-status-taxable" : "tax-status tax-status-exempt"}>{line.afecto ? "Afecto" : "Exento"}</span>
+                    <span>{Number(line.cantidad)}</span>
+                    <span>{money.format(line.precio_unitario)}</span>
+                    <strong>{money.format(line.subtotal)}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="order-detail-total">
+                <strong>Total</strong>
+                <strong>{money.format(selectedOrder.total)}</strong>
+              </div>
+            </div>
+            <footer>
+              <div className="order-state-actions">
+                {selectedOrder.estado.nombre === "Entregado" && (
+                  <button
+                    className="btn btn-outline-primary"
+                    type="button"
+                    disabled={selectedOrder.tiene_credito}
+                    onClick={() => {
+                      setCreditDays("");
+                      setError("");
+                      setCreditOrder(selectedOrder);
+                    }}
+                  >
+                    {selectedOrder.tiene_credito ? "Crédito asignado" : "Agregar crédito"}
+                  </button>
+                )}
+                {availableTransitions(selectedOrder).map((nextState) => (
+                  <button
+                    className={
+                      nextState === "Cancelado"
+                        ? "btn btn-outline-danger"
+                        : "btn btn-primary"
+                    }
+                    type="button"
+                    key={nextState}
+                    onClick={() => {
+                      setDeliveryPayment(null);
+                      setCreditDays("");
+                      setConfirmation({ order: selectedOrder, nextState });
+                    }}
+                  >
+                    {nextState === "Despachado"
+                      ? "Despachar"
+                      : nextState === "Entregado"
+                        ? "Entregar"
+                        : "Cancelar pedido"}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+              >
+                Cerrar
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+      {confirmation && (
+        <div className="modal-backdrop-custom">
+          <section
+            className="category-modal confirmation-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <header>
+              <div>
+                <p className="eyebrow">CONFIRMAR ACCION</p>
+                <h2>
+                  {confirmation.nextState === "Entregado"
+                    ? "¿Cliente pagó su pedido?"
+                    : "¿Cambiar estado del pedido?"}
+                </h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setConfirmation(null)}
+                aria-label="Cerrar confirmación"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              <p>
+                El pedido{" "}
+                <strong>
+                  {confirmation.order.id.slice(0, 8).toUpperCase()}
+                </strong>{" "}
+                cambiará de <strong>{confirmation.order.estado.nombre}</strong>{" "}
+                a <strong>{confirmation.nextState}</strong>.
+              </p>
+              {confirmation.nextState === "Entregado" ? (
+                <>
+                  <div className="payment-choice">
+                    <button
+                      type="button"
+                      className={
+                        deliveryPayment === true
+                          ? "btn btn-primary"
+                          : "btn btn-outline-primary"
+                      }
+                      onClick={() => {
+                        setDeliveryPayment(true);
+                        setCreditDays("");
+                      }}
+                    >
+                      Sí, pagó
+                    </button>
+                    <button
+                      type="button"
+                      className={
+                        deliveryPayment === false
+                          ? "btn btn-primary"
+                          : "btn btn-outline-primary"
+                      }
+                      onClick={() => setDeliveryPayment(false)}
+                    >
+                      No, queda a crédito
+                    </button>
+                  </div>
+                  {deliveryPayment === false && (
+                    <div className="mt-3">
+                      <label className="form-label" htmlFor="credit-days">
+                        Días de crédito
+                      </label>
+                      <input
+                        id="credit-days"
+                        className="form-control"
+                        type="number"
+                        min="1"
+                        max="365"
+                        step="1"
+                        value={creditDays}
+                        onChange={(event) => setCreditDays(event.target.value)}
+                        required
+                        autoFocus
+                      />
+                      <small className="form-text">
+                        El vencimiento se calcula desde la fecha de entrega.
+                      </small>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="mb-0">
+                  Esta acción actualizará el estado visible para el cliente.
+                </p>
+              )}
+            </div>
+            <footer>
+              <button
+                className="btn btn-light"
+                type="button"
+                disabled={updatingState}
+                onClick={() => setConfirmation(null)}
+              >
+                Volver
+              </button>
+              <button
+                className={
+                  confirmation.nextState === "Cancelado"
+                    ? "btn btn-danger"
+                    : "btn btn-primary"
+                }
+                type="button"
+                disabled={updatingState}
+                onClick={changeOrderStatus}
+              >
+                {updatingState
+                  ? "Actualizando..."
+                  : confirmation.nextState === "Entregado"
+                    ? "Finalizar entrega"
+                    : "Confirmar cambio"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+      {creditOrder && (
+        <div className="modal-backdrop-custom">
+          <section
+            className="category-modal confirmation-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <header>
+              <div>
+                <p className="eyebrow">ASIGNAR CRÉDITO</p>
+                <h2>Crédito para pedido entregado</h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setCreditOrder(null)}
+                aria-label="Cerrar asignación de crédito"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              {error && <div className="alert alert-danger">{error}</div>}
+              <p>
+                Asignar crédito al pedido <strong>{creditOrder.id.slice(0, 8).toUpperCase()}</strong>.
+              </p>
+              <label className="form-label" htmlFor="delivered-credit-days">
+                Días de crédito
+              </label>
+              <input
+                id="delivered-credit-days"
+                className="form-control"
+                type="number"
+                min="1"
+                max="365"
+                step="1"
+                value={creditDays}
+                onChange={(event) => setCreditDays(event.target.value)}
+                required
+                autoFocus
+              />
+              <small className="form-text">
+                El vencimiento se calcula desde la fecha de asignación.
+              </small>
+            </div>
+            <footer>
+              <button
+                className="btn btn-light"
+                type="button"
+                disabled={updatingState}
+                onClick={() => setCreditOrder(null)}
+              >
+                Volver
+              </button>
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={updatingState}
+                onClick={assignOrderCredit}
+              >
+                {updatingState ? "Asignando..." : "Asignar crédito"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </>
+  );
 }
 
 function CreditManager() {
@@ -803,7 +1934,7 @@ function AdminSalesDashboard() {
     return order.estado.nombre !== "Cancelado" && (!from || (createdAt && createdAt >= from)) && (!to || (createdAt && createdAt <= to));
   });
   const totalSales = salesOrders.reduce((total, order) => total + Number(order.total), 0);
-  const totalUnits = salesOrders.reduce((total, order) => total + order.detalles.reduce((sum, line) => sum + line.cantidad, 0), 0);
+  const totalUnits = salesOrders.reduce((total, order) => total + order.detalles.reduce((sum, line) => sum + Number(line.cantidad), 0), 0);
   const customerRanking = Object.values(salesOrders.reduce((ranking, order) => {
     const id = order.cliente.id;
     const name = order.cliente.nombre || order.cliente.rut || order.cliente.celular || "Cliente";
@@ -815,7 +1946,7 @@ function AdminSalesDashboard() {
   const productRanking = Object.values(salesOrders.reduce((ranking, order) => {
     order.detalles.forEach((line) => {
       ranking[line.producto_id] ??= { id: line.producto_id, name: line.nombre_producto, units: 0, total: 0 };
-      ranking[line.producto_id].units += line.cantidad;
+      ranking[line.producto_id].units += Number(line.cantidad);
       ranking[line.producto_id].total += Number(line.subtotal);
     });
     return ranking;
@@ -1149,7 +2280,7 @@ function Shop({ customer, onLogout }) {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
-    root.render(<div className="modal-backdrop-custom"><section className="category-modal product-modal order-detail-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">PEDIDO</p><h2>Detalle del pedido</h2></div><button className="icon-button" type="button" onClick={() => setSelectedOrder(null)} aria-label="Cerrar detalle"><X size={19} /></button></header><div className="modal-body-custom"><div className="order-detail-meta"><span>Pedido {selectedOrder.id.slice(0, 8).toUpperCase()}</span><span>{selectedOrder.created_at ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedOrder.created_at)) : ""}</span></div><div className="order-detail-lines"><div><span>Producto</span><span>Cantidad</span><span>Precio</span><span>Subtotal</span></div>{selectedOrder.detalles.map((line) => <div key={line.producto_id}><span>{line.nombre_producto}</span><span>{line.cantidad}</span><span>{money.format(line.precio_unitario)}</span><strong>{money.format(line.subtotal)}</strong></div>)}</div><div className="order-detail-total"><strong>Total</strong><strong>{money.format(selectedOrder.total)}</strong></div></div><footer><button className="btn btn-light" type="button" onClick={() => setSelectedOrder(null)}>Cerrar</button></footer></section></div>);
+    root.render(<div className="modal-backdrop-custom"><section className="category-modal product-modal order-detail-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">PEDIDO</p><h2>Detalle del pedido</h2></div><button className="icon-button" type="button" onClick={() => setSelectedOrder(null)} aria-label="Cerrar detalle"><X size={19} /></button></header><div className="modal-body-custom"><div className="order-detail-meta"><span>Pedido {selectedOrder.id.slice(0, 8).toUpperCase()}</span><span>{selectedOrder.created_at ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedOrder.created_at)) : ""}</span></div><div className="order-detail-lines"><div><span>Producto</span><span>Tributación</span><span>Cantidad</span><span>Precio</span><span>Subtotal</span></div>{selectedOrder.detalles.map((line) => <div key={line.producto_id}><OrderProduct line={line} /><span className={line.afecto ? "tax-status tax-status-taxable" : "tax-status tax-status-exempt"}>{line.afecto ? "Afecto" : "Exento"}</span><span>{Number(line.cantidad)}</span><span>{money.format(line.precio_unitario)}</span><strong>{money.format(line.subtotal)}</strong></div>)}</div><div className="order-detail-total"><strong>Total</strong><strong>{money.format(selectedOrder.total)}</strong></div></div><footer><button className="btn btn-light" type="button" onClick={() => setSelectedOrder(null)}>Cerrar</button></footer></section></div>);
     return () => { root.unmount(); container.remove(); };
   }, [selectedOrder]);
 
@@ -1169,7 +2300,7 @@ function Shop({ customer, onLogout }) {
   }
 
   function updateQuantity(productId, quantity) {
-    setCart((current) => quantity < 1 ? current.filter((item) => item.id !== productId) : current.map((item) => item.id === productId ? { ...item, quantity } : item));
+    setCart((current) => quantity < 0.5 ? current.filter((item) => item.id !== productId) : current.map((item) => item.id === productId ? { ...item, quantity } : item));
   }
 
   async function createOrder() {
@@ -1194,7 +2325,229 @@ function Shop({ customer, onLogout }) {
 
   const total = cart.reduce((sum, item) => sum + Number(item.precio_cliente ?? item.precio) * item.quantity, 0);
   const activeAddresses = customer.direcciones?.filter((address) => address.activo) ?? [];
-  return <main className="customer-portal"><aside className="customer-sidebar"><div className="customer-brand"><span className="brand-mark">S</span><strong>Santa Mena</strong></div><p className="sidebar-label">MENU PRINCIPAL</p><nav className="customer-nav"><span className="customer-nav-title"><ClipboardList size={19} />Pedidos</span><button className={section === "create" ? "active" : ""} onClick={() => { setSection("create"); setError(""); }}><ShoppingBag size={17} />Realizar pedido</button><button className={section === "history" ? "active" : ""} onClick={openHistory}><ClipboardList size={17} />Pedidos históricos</button></nav><div className="customer-profile"><span>{(customer.nombre || customer.rut || customer.celular || "CL").slice(0, 2).toUpperCase()}</span><div><strong>{customer.nombre || "Cliente"}</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={onLogout}><LogOut size={18} />Cerrar sesión</button></aside><section className="customer-workspace"><header className="customer-portal-header"><div><p className="eyebrow">PEDIDOS</p><h1>{section === "create" ? "Realizar pedido" : "Pedidos históricos"}</h1></div><span className="customer-welcome">Hola, {customer.nombre || customer.rut || customer.celular}</span></header><div className="customer-content">{notice && <div className="alert alert-success alert-dismissible fade show"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger">{error}</div>}{section === "create" ? <div className="row g-4"><section className="col-xl-8"><div className="search-field"><Search size={20} /><input className="form-control form-control-lg" placeholder="Busca por nombre de producto" value={query} onChange={(event) => setQuery(event.target.value)} /></div><div className="product-grid mt-4">{products.map((product) => <article className="product" key={product.id}><div className="product-image">{productImageSource(product.imagen_url) ? <img src={productImageSource(product.imagen_url)} alt="" /> : <Package size={30} />}</div><small>{product.codigo}</small><h2>{product.nombre}</h2><strong>{money.format(product.precio_cliente ?? product.precio)}</strong><button className="btn btn-outline-primary mt-3" onClick={() => add(product)}><Plus size={17} />Agregar</button></article>)}</div>{!products.length && <p className="text-secondary mt-4">No se encontraron productos.</p>}</section><aside className="col-xl-4"><div className="cart"><div className="cart-title"><ShoppingBag size={20} /><h2>Tu pedido</h2></div><label className="form-label" htmlFor="delivery-address">Dirección de despacho</label><select id="delivery-address" className="form-select" value={selectedAddress} onChange={(event) => setSelectedAddress(event.target.value)}><option value="">Selecciona una dirección</option>{activeAddresses.map((address) => <option value={address.id} key={address.id}>{address.direccion}{address.comuna ? `, ${address.comuna}` : ""}{address.principal ? " (Principal)" : ""}</option>)}</select>{!activeAddresses.length && <small className="form-text">No tienes direcciones activas registradas.</small>}{cart.length ? <><div className="cart-items">{cart.map((item) => <div className="cart-line" key={item.id}><span>{item.nombre}</span><div><button onClick={() => updateQuantity(item.id, item.quantity - 1)} aria-label="Quitar unidad">-</button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="Agregar unidad">+</button></div></div>)}</div><hr /><div className="d-flex justify-content-between"><strong>Total</strong><strong>{money.format(total)}</strong></div><button className="btn btn-primary w-100 mt-3" onClick={createOrder} disabled={submitting || !selectedAddress}>{submitting ? "Enviando..." : "Enviar pedido"}</button></> : <p className="text-secondary mt-3 mb-0">Agrega productos para comenzar.</p>}</div></aside></div> : <section className="content-panel"><div className="panel-heading"><div><h2>Todos tus pedidos</h2><p>Revisa el estado e importe de cada solicitud.</p></div><span className="panel-count">{orders.length} pedidos</span></div><div className="order-history mt-4">{orders.length ? orders.map((order) => <article className="order-history-row" key={order.id}><div><strong>Pedido {order.id.slice(0, 8).toUpperCase()}</strong><small>{order.detalles.length} productos</small></div><span className={`order-status order-${order.estado.toLowerCase()}`}>{order.estado.replace("_", " ")}</span><strong>{money.format(order.total)}</strong></article>) : <p className="text-secondary mb-0">Aún no registras pedidos.</p>}</div></section>}</div></section></main>;
+  return (
+    <main className="customer-portal">
+      <aside className="customer-sidebar">
+        <div className="customer-brand">
+          <span className="brand-mark">S</span>
+          <strong>Santa Mena</strong>
+        </div>
+        <p className="sidebar-label">MENU PRINCIPAL</p>
+        <nav className="customer-nav">
+          <span className="customer-nav-title">
+            <ClipboardList size={19} />
+            Pedidos
+          </span>
+          <button
+            className={section === "create" ? "active" : ""}
+            onClick={() => {
+              setSection("create");
+              setError("");
+            }}
+          >
+            <ShoppingBag size={17} />
+            Realizar pedido
+          </button>
+          <button
+            className={section === "history" ? "active" : ""}
+            onClick={openHistory}
+          >
+            <ClipboardList size={17} />
+            Pedidos históricos
+          </button>
+        </nav>
+        <div className="customer-profile">
+          <span>
+            {(customer.nombre || customer.rut || customer.celular || "CL")
+              .slice(0, 2)
+              .toUpperCase()}
+          </span>
+          <div>
+            <strong>{customer.nombre || "Cliente"}</strong>
+            <small>Sesión activa</small>
+          </div>
+        </div>
+        <button className="logout-button" onClick={onLogout}>
+          <LogOut size={18} />
+          Cerrar sesión
+        </button>
+      </aside>
+      <section className="customer-workspace">
+        <header className="customer-portal-header">
+          <div>
+            <p className="eyebrow">PEDIDOS</p>
+            <h1>
+              {section === "create" ? "Realizar pedido" : "Pedidos históricos"}
+            </h1>
+          </div>
+          <span className="customer-welcome">
+            Hola, {customer.nombre || customer.rut || customer.celular}
+          </span>
+        </header>
+        <div className="customer-content">
+          {notice && (
+            <div className="alert alert-success alert-dismissible fade show">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button
+                className="btn-close"
+                type="button"
+                onClick={() => setNotice("")}
+              />
+            </div>
+          )}
+          {error && <div className="alert alert-danger">{error}</div>}
+          {section === "create" ? (
+            <div className="row g-4">
+              <section className="col-xl-8">
+                <div className="search-field">
+                  <Search size={20} />
+                  <input
+                    className="form-control form-control-lg"
+                    placeholder="Busca por nombre de producto"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                </div>
+                <div className="product-grid mt-4">
+                  {products.map((product) => (
+                    <article className="product" key={product.id}>
+                      <div className="product-image">
+                        {productImageSource(product.imagen_url) ? (
+                          <img
+                            src={productImageSource(product.imagen_url)}
+                            alt=""
+                          />
+                        ) : (
+                          <Package size={30} />
+                        )}
+                      </div>
+                      <small>{product.codigo}</small>
+                      <h2>{product.nombre}</h2>
+                      <strong>
+                        {money.format(product.precio_cliente ?? product.precio)}
+                      </strong>
+                      <button
+                        className="btn btn-outline-primary mt-3"
+                        onClick={() => add(product)}
+                      >
+                        <Plus size={17} />
+                        Agregar
+                      </button>
+                    </article>
+                  ))}
+                </div>
+                {!products.length && (
+                  <p className="text-secondary mt-4">
+                    No se encontraron productos.
+                  </p>
+                )}
+              </section>
+              <aside className="col-xl-4">
+                <div className="cart">
+                  <div className="cart-title">
+                    <ShoppingBag size={20} />
+                    <h2>Tu pedido</h2>
+                  </div>
+                  <label className="form-label" htmlFor="delivery-address">
+                    Dirección de despacho
+                  </label>
+                  <select
+                    id="delivery-address"
+                    className="form-select"
+                    value={selectedAddress}
+                    onChange={(event) => setSelectedAddress(event.target.value)}
+                  >
+                    <option value="">Selecciona una dirección</option>
+                    {activeAddresses.map((address) => (
+                      <option value={address.id} key={address.id}>
+                        {address.direccion}
+                        {address.comuna ? `, ${address.comuna}` : ""}
+                        {address.principal ? " (Principal)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {!activeAddresses.length && (
+                    <small className="form-text">
+                      No tienes direcciones activas registradas.
+                    </small>
+                  )}
+                  {cart.length ? (
+                    <>
+                      <div className="cart-items">
+                        {cart.map((item) => (
+                          <div className="cart-line" key={item.id}>
+                            <span>{item.nombre}</span>
+                            <QuantitySelector
+                              cantidad={item.quantity}
+                              onCantidadChange={(quantity) =>
+                                updateQuantity(item.id, quantity)
+                              }
+                              permiteMediaUnidad
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <hr />
+                      <div className="d-flex justify-content-between">
+                        <strong>Total</strong>
+                        <strong>{money.format(total)}</strong>
+                      </div>
+                      <button
+                        className="btn btn-primary w-100 mt-3"
+                        onClick={createOrder}
+                        disabled={submitting || !selectedAddress}
+                      >
+                        {submitting ? "Enviando..." : "Enviar pedido"}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-secondary mt-3 mb-0">
+                      Agrega productos para comenzar.
+                    </p>
+                  )}
+                </div>
+              </aside>
+            </div>
+          ) : (
+            <section className="content-panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>Todos tus pedidos</h2>
+                  <p>Revisa el estado e importe de cada solicitud.</p>
+                </div>
+                <span className="panel-count">{orders.length} pedidos</span>
+              </div>
+              <div className="order-history mt-4">
+                {orders.length ? (
+                  orders.map((order) => (
+                    <article className="order-history-row" key={order.id}>
+                      <div>
+                        <strong>
+                          Pedido {order.id.slice(0, 8).toUpperCase()}
+                        </strong>
+                        <small>{order.detalles.length} productos</small>
+                      </div>
+                      <span
+                        className={`order-status order-${order.estado.toLowerCase()}`}
+                      >
+                        {order.estado.replace("_", " ")}
+                      </span>
+                      <strong>{money.format(order.total)}</strong>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-secondary mb-0">
+                    Aún no registras pedidos.
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      </section>
+    </main>
+  );
 }
 
 function App() {

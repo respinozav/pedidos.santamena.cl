@@ -70,8 +70,9 @@ class Producto(AuditMixin, Base):
     codigo: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     nombre: Mapped[str] = mapped_column(String(180), index=True)
     precio: Mapped[Decimal] = mapped_column(Numeric(12, 2))
-    cantidad: Mapped[int] = mapped_column(default=0)
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     imagen_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    afecto: Mapped[bool] = mapped_column(Boolean, default=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     categoria: Mapped[Categoria] = relationship(back_populates="productos")
@@ -122,6 +123,10 @@ class Pedido(AuditMixin, Base):
     detalles: Mapped[list["DetallePedido"]] = relationship(back_populates="pedido", cascade="all, delete-orphan")
     credito: Mapped["Credito | None"] = relationship(back_populates="pedido", uselist=False)
 
+    @property
+    def tiene_credito(self) -> bool:
+        return self.credito is not None
+
 
 class Credito(AuditMixin, Base):
     __tablename__ = "creditos"
@@ -146,7 +151,8 @@ class DetallePedido(AuditMixin, Base):
     producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("productos.id"))
     codigo_producto: Mapped[str] = mapped_column(String(50))
     nombre_producto: Mapped[str] = mapped_column(String(180))
+    afecto: Mapped[bool] = mapped_column(Boolean, default=True)
     precio_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 2))
-    cantidad: Mapped[int] = mapped_column()
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     pedido: Mapped[Pedido] = relationship(back_populates="detalles")

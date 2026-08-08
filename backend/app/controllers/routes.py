@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -20,6 +21,7 @@ from app.schemas.dto import (
     CustomerInput,
     CustomerOutput,
     OrderCreate,
+    OrderCreditCreate,
     OrderOutput,
     OrderStateOutput,
     OrderStatusUpdate,
@@ -159,7 +161,7 @@ def list_admin_products(
     _: AdminUser,
     category_id: UUID | None = None,
     search: str | None = Query(default=None, max_length=180),
-    stock_lt: int | None = None,
+    stock_lt: Decimal | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=10),
 ) -> ProductPage:
@@ -327,3 +329,8 @@ def list_order_states(database: DatabaseSession, _: AdminUser) -> list[Estado]:
 @router.patch("/pedidos/{order_id}/estado", response_model=OrderOutput, tags=["Pedidos"])
 def update_order_status(order_id: UUID, payload: OrderStatusUpdate, database: DatabaseSession, _: AdminUser) -> object:
     return OrderService(database).change_status(order_id, payload.estado_id, payload.pagado, payload.dias_credito)
+
+
+@router.post("/pedidos/{order_id}/credito", response_model=OrderOutput, status_code=status.HTTP_201_CREATED, tags=["Créditos"])
+def assign_order_credit(order_id: UUID, payload: OrderCreditCreate, database: DatabaseSession, _: AdminUser) -> object:
+    return OrderService(database).assign_credit(order_id, payload.dias_credito)

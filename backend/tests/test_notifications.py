@@ -16,6 +16,7 @@ def test_order_pdf_contains_valid_header() -> None:
                 codigo_producto="PR-001",
                 cantidad=2,
                 nombre_producto="Producto de prueba",
+                afecto=False,
                 precio_unitario=Decimal("1000"),
                 subtotal=Decimal("2000"),
             )

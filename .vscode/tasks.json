@@ -1098,6 +1098,174 @@
 			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Validar SMTP con dominio Santa Mena",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nimport smtplib\nfrom app.core.config import get_settings\nsettings = get_settings()\nwith smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:\n    smtp.login(settings.smtp_username, settings.smtp_password)\nprint('Autenticación SMTP correcta')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Resolver host Santa Mena",
+			"type": "shell",
+			"command": "Resolve-DnsName pedidos.santamena.cl -ErrorAction SilentlyContinue | Select-Object Name, Type, IPAddress, NameHost | Format-Table -AutoSize",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar puertos correo Santa Mena",
+			"type": "shell",
+			"command": "Test-NetConnection pedidos.santamena.cl -Port 465 -InformationLevel Quiet; Test-NetConnection pedidos.santamena.cl -Port 587 -InformationLevel Quiet",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verificar hosts de configuración",
+			"type": "shell",
+			"command": "Get-Content .env | Where-Object { $_ -match '^(SMTP_HOST|APP_HOST|VITE_|CORS_ORIGINS)=' } | ForEach-Object { if ($_ -match '^SMTP_HOST=') { 'SMTP_HOST configurado' } else { $_ } }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar servidor SMTP configurado",
+			"type": "shell",
+			"command": "$smtpHost = (Get-Content .env | Where-Object { $_ -match '^SMTP_HOST=' } | Select-Object -First 1).Split('=', 2)[1]; if ($smtpHost -eq 's550.v2nets.com') { 'SMTP_CORRECTO' } else { 'SMTP_REQUIERE_RESTAURACION' }",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir login con logo centrado",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir logo realmente centrado",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar cantidades decimales backend",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app backend\\alembic\\versions; Set-Location backend; @'\nfrom decimal import Decimal\nfrom uuid import uuid4\nfrom pydantic import ValidationError\nfrom app.schemas.dto import OrderLineInput\nassert OrderLineInput(producto_id=uuid4(), cantidad=Decimal('1.5')).cantidad == Decimal('1.5')\ntry:\n    OrderLineInput(producto_id=uuid4(), cantidad=Decimal('1.2'))\nexcept ValidationError:\n    print('DTO válido: acepta 1.5 y rechaza 1.2')\nelse:\n    raise AssertionError('Se aceptó una cantidad no múltiplo de 0.5')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspeccionar selector del carrito",
+			"type": "shell",
+			"command": "$text = Get-Content frontend\\src\\main.jsx -Raw; $start = $text.IndexOf('<div className=\"cart-items\">', $text.IndexOf('function Shop({')); $length = [Math]::Min(1200, $text.Length - $start); $text.Substring($start, $length)",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Extraer control cantidad carrito",
+			"type": "shell",
+			"command": "$text = Get-Content frontend\\src\\main.jsx -Raw; $start = $text.IndexOf('cart-items', $text.IndexOf('function Shop')); if ($start -lt 0) { throw 'No se encontró cart-items' }; $from = [Math]::Max(0, $start - 120); $length = [Math]::Min(1200, $text.Length - $from); $text.Substring($from, $length)",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar selector media unidad",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Formatear bloque del carrito",
+			"type": "shell",
+			"command": "$text = Get-Content frontend\\src\\main.jsx -Raw; $start = $text.IndexOf('cart-items', $text.IndexOf('function Shop')); $end = $text.IndexOf('</aside>', $start); npx.cmd --yes prettier@3.6.2 frontend\\src\\main.jsx --write --range-start $start --range-end $end",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Construir carrito media unidad",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar cálculos media unidad",
+			"type": "shell",
+			"command": "C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app; npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Formatear formulario de stock",
+			"type": "shell",
+			"command": "$text = Get-Content frontend\\src\\main.jsx -Raw; $start = $text.IndexOf('product-stock-base64'); if ($start -lt 0) { throw 'No se encontró el campo de stock' }; $end = $text.IndexOf('</form>', $start); npx.cmd --yes prettier@3.6.2 frontend\\src\\main.jsx --write --range-start $start --range-end $end",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar formulario stock decimal",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Migrar cantidades a decimal",
+			"type": "shell",
+			"command": "Set-Location backend; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic upgrade head; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m alembic current",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verificar columnas decimales",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nfrom sqlalchemy import text\nfrom app.core.database import engine\nfrom app.core.config import get_settings\nschema = get_settings().database_schema\nwith engine.connect() as connection:\n    rows = connection.execute(text(\"\"\"\n        select table_name, data_type, numeric_precision, numeric_scale\n        from information_schema.columns\n        where table_schema = :schema\n          and (table_name, column_name) in (('productos', 'cantidad'), ('detalle_pedidos', 'cantidad'))\n        order by table_name\n    \"\"\"), {'schema': schema}).all()\nassert len(rows) == 2 and all(row.data_type == 'numeric' and row.numeric_scale == 2 for row in rows)\nfor row in rows:\n    print(f'{row.table_name}.cantidad: numeric({row.numeric_precision},{row.numeric_scale})')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Confirmar tipos de cantidad",
+			"type": "shell",
+			"command": "Set-Location backend; @'\nfrom sqlalchemy import text\nfrom app.core.database import engine\nfrom app.core.config import get_settings\nschema = get_settings().database_schema\nquery = 'select table_name, data_type, numeric_precision, numeric_scale from information_schema.columns where table_schema = :schema and column_name = :column and table_name in (:products, :details) order by table_name'\nwith engine.connect() as connection:\n    rows = connection.execute(text(query), {'schema': schema, 'column': 'cantidad', 'products': 'productos', 'details': 'detalle_pedidos'}).all()\nassert len(rows) == 2 and all(row.data_type == 'numeric' and row.numeric_scale == 2 for row in rows)\nfor row in rows:\n    print(f'{row.table_name}.cantidad: numeric({row.numeric_precision},{row.numeric_scale})')\n'@ | & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Reiniciar API medias unidades",
+			"type": "shell",
+			"command": "$listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($listener) { Stop-Process -Id $listener.OwningProcess -Force }; & 'C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Comprobar API medias unidades",
+			"type": "shell",
+			"command": "$health = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content; $catalog = (Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8000/api/productos?page=1&page_size=10').Content | ConvertFrom-Json; [PSCustomObject]@{ Health = $health; Productos = $catalog.items.Count; CantidadTipo = $catalog.items[0].cantidad.GetType().Name } | Format-List",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar salud API decimal",
+			"type": "shell",
+			"command": "(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health).Content",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validar catálogo decimal",
+			"type": "shell",
+			"command": "$data = (Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8000/api/productos?page=1&page_size=10').Content | ConvertFrom-Json; Write-Output \"Productos: $($data.items.Count), stock ejemplo: $($data.items[0].cantidad)\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validación final medias unidades",
+			"type": "shell",
+			"command": "npm.cmd --prefix frontend run build; C:\\Users\\respinozav\\AppData\\Local\\Programs\\Python\\Python313\\python.exe -m compileall backend\\app backend\\alembic\\versions; git diff --check",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

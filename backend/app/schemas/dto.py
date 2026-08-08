@@ -32,9 +32,17 @@ class ProductInput(BaseModel):
     codigo: str = Field(min_length=1, max_length=50)
     nombre: str = Field(min_length=2, max_length=180)
     precio: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
-    cantidad: int
+    cantidad: Decimal = Field(max_digits=12, decimal_places=2)
     imagen_url: str | None = Field(default=None, max_length=7_000_000)
+    afecto: bool = True
     activo: bool = True
+
+    @field_validator("cantidad")
+    @classmethod
+    def validate_stock_half_unit(cls, value: Decimal) -> Decimal:
+        if value % Decimal("0.5"):
+            raise ValueError("El stock debe avanzar en incrementos de 0.5")
+        return value
 
     @field_validator("nombre")
     @classmethod
@@ -151,7 +159,14 @@ class TokenOutput(BaseModel):
 
 class OrderLineInput(BaseModel):
     producto_id: UUID
-    cantidad: int = Field(gt=0)
+    cantidad: Decimal = Field(ge=Decimal("0.5"), max_digits=12, decimal_places=2)
+
+    @field_validator("cantidad")
+    @classmethod
+    def validate_half_unit(cls, value: Decimal) -> Decimal:
+        if value % Decimal("0.5"):
+            raise ValueError("La cantidad debe avanzar en incrementos de 0.5")
+        return value
 
 
 class OrderCreate(BaseModel):
@@ -163,8 +178,9 @@ class OrderLineOutput(ORMModel):
     producto_id: UUID
     codigo_producto: str
     nombre_producto: str
+    afecto: bool
     precio_unitario: Decimal
-    cantidad: int
+    cantidad: Decimal
     subtotal: Decimal
 
 
@@ -198,12 +214,17 @@ class OrderOutput(ORMModel):
     subtotal: Decimal
     total: Decimal
     detalles: list[OrderLineOutput] = []
+    tiene_credito: bool
 
 
 class OrderStatusUpdate(BaseModel):
     estado_id: UUID
     pagado: bool | None = None
     dias_credito: int | None = Field(default=None, ge=1, le=365)
+
+
+class OrderCreditCreate(BaseModel):
+    dias_credito: int = Field(ge=1, le=365)
 
 
 class CreditCustomerOutput(ORMModel):

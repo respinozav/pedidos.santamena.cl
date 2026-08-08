@@ -43,7 +43,7 @@ class OrderService:
             line_total = applied_price * line.cantidad
             product.cantidad -= line.cantidad
             subtotal += line_total
-            details.append(DetallePedido(producto_id=product.id, codigo_producto=product.codigo, nombre_producto=product.nombre, precio_unitario=applied_price, cantidad=line.cantidad, subtotal=line_total))
+            details.append(DetallePedido(producto_id=product.id, codigo_producto=product.codigo, nombre_producto=product.nombre, afecto=product.afecto, precio_unitario=applied_price, cantidad=line.cantidad, subtotal=line_total))
 
         initial_state = self.database.scalar(select(Estado).where(Estado.nombre == "Pedido", Estado.activo.is_(True)))
         if not initial_state:
@@ -56,7 +56,7 @@ class OrderService:
         return created_order
 
     def get(self, order_id: UUID) -> Pedido:
-        order = self.database.scalar(select(Pedido).options(selectinload(Pedido.detalles), selectinload(Pedido.estado), selectinload(Pedido.cliente), selectinload(Pedido.direccion)).where(Pedido.id == order_id))
+        order = self.database.scalar(select(Pedido).options(selectinload(Pedido.detalles), selectinload(Pedido.estado), selectinload(Pedido.cliente), selectinload(Pedido.direccion), selectinload(Pedido.credito)).where(Pedido.id == order_id))
         if not order:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
         return order
@@ -65,14 +65,37 @@ class OrderService:
         return _order_pdf(self.get(order_id))
 
     def list_for_customer(self, customer_id: UUID, state_id: UUID | None = None) -> list[Pedido]:
-        statement = select(Pedido).options(selectinload(Pedido.detalles), selectinload(Pedido.estado), selectinload(Pedido.cliente), selectinload(Pedido.direccion)).where(Pedido.cliente_id == customer_id)
+        statement = select(Pedido).options(selectinload(Pedido.detalles), selectinload(Pedido.estado), selectinload(Pedido.cliente), selectinload(Pedido.direccion), selectinload(Pedido.credito)).where(Pedido.cliente_id == customer_id)
         if state_id:
             statement = statement.where(Pedido.estado_id == state_id)
         return list(self.database.scalars(statement.order_by(Pedido.created_at.desc())))
 
     def list_all(self) -> list[Pedido]:
-        statement = select(Pedido).options(selectinload(Pedido.detalles), selectinload(Pedido.estado), selectinload(Pedido.cliente), selectinload(Pedido.direccion))
+        statement = select(Pedido).options(selectinload(Pedido.detalles), selectinload(Pedido.estado), selectinload(Pedido.cliente), selectinload(Pedido.direccion), selectinload(Pedido.credito))
         return list(self.database.scalars(statement.order_by(Pedido.created_at.desc())))
+
+    def assign_credit(self, order_id: UUID, credit_days: int) -> Pedido:
+        order = self.get(order_id)
+        if order.estado.nombre != "Entregado":
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Solo se puede asignar crédito a pedidos entregados")
+        if order.tiene_credito:
+            raise HTTPException(status.HTTP_409_CONFLICT, "El pedido ya tiene un crédito registrado")
+        self._add_credit(order, credit_days)
+        self.database.commit()
+        return self.get(order.id)
+
+    def _add_credit(self, order: Pedido, credit_days: int) -> None:
+        delivery_date = datetime.now(UTC)
+        self.database.add(
+            Credito(
+                cliente_id=order.cliente_id,
+                pedido_id=order.id,
+                dias_credito=credit_days,
+                fecha_entrega=delivery_date,
+                fecha_vencimiento=delivery_date + timedelta(days=credit_days),
+                pagado=False,
+            )
+        )
 
     def change_status(
         self,
@@ -97,17 +120,7 @@ class OrderService:
                 raise HTTPException(status.HTTP_409_CONFLICT, "El pedido ya tiene un crédito registrado")
         order.estado_id = next_state.id
         if next_state.nombre == "Entregado" and not pagado:
-            delivery_date = datetime.now(UTC)
-            self.database.add(
-                Credito(
-                    cliente_id=order.cliente_id,
-                    pedido_id=order.id,
-                    dias_credito=dias_credito,
-                    fecha_entrega=delivery_date,
-                    fecha_vencimiento=delivery_date + timedelta(days=dias_credito),
-                    pagado=False,
-                )
-            )
+            self._add_credit(order, dias_credito)
         self.database.commit()
         return self.get(order.id)
 
