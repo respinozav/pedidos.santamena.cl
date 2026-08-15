@@ -71,10 +71,10 @@ def _order_pdf(order: Pedido) -> bytes:
         f"<b>Dirección de despacho:</b> {html.escape(address or 'Sin dirección registrada')}",
     ))
     story.extend([Paragraph(customer_details, styles["Details"]), Spacer(1, 7 * mm)])
-    detail_widths = [22 * mm, 51 * mm, 25 * mm, 16 * mm, 28 * mm, 32 * mm]
-    rows = [["Código", "Producto", "Tributación", "Cant.", "Precio", "Subtotal"]]
+    detail_widths = [26 * mm, 74 * mm, 18 * mm, 26 * mm, 30 * mm]
+    rows = [["Código", "Producto", "Cant.", "Precio", "Subtotal"]]
     for detail in order.detalles:
-        rows.append([html.escape(detail.codigo_producto), Paragraph(f"<b>{html.escape(detail.nombre_producto)}</b>", styles["Details"]), "Afecto" if getattr(detail, "afecto", True) else "Exento", _quantity(detail.cantidad), _currency(detail.precio_unitario), _currency(detail.subtotal)])
+        rows.append([html.escape(detail.codigo_producto), Paragraph(f"<b>{html.escape(detail.nombre_producto)}</b>", styles["Details"]), _quantity(detail.cantidad), _currency(detail.precio_unitario), _currency(detail.subtotal)])
     details = Table(rows, colWidths=detail_widths, repeatRows=1)
     details.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF4FF")),
@@ -92,15 +92,16 @@ def _order_pdf(order: Pedido) -> bytes:
     ]))
     tax_totals = _tax_totals(order.detalles)
     summary = Table([
-        ["Exento", "", "", _quantity(tax_totals[False][0]), _currency(tax_totals[False][1]), ""],
-        ["Afecto", "", "", _quantity(tax_totals[True][0]), _currency(tax_totals[True][1]), ""],
+        ["Exento", "", _quantity(tax_totals[False][0]), _currency(tax_totals[False][1]), ""],
+        ["Afecto", "", _quantity(tax_totals[True][0]), _currency(tax_totals[True][1]), ""],
     ], colWidths=detail_widths)
     summary.setStyle(TableStyle([
-        ("SPAN", (0, 0), (2, 0)),
-        ("SPAN", (0, 1), (2, 1)),
+        ("SPAN", (0, 0), (1, 0)),
+        ("SPAN", (0, 1), (1, 1)),
         ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("ALIGN", (3, 0), (4, -1), "RIGHT"),
+        ("ALIGN", (2, 0), (2, -1), "CENTER"),
+        ("ALIGN", (3, 0), (3, -1), "RIGHT"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
@@ -109,7 +110,7 @@ def _order_pdf(order: Pedido) -> bytes:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#334E68")),
     ]))
-    total = Table([["TOTAL", _currency(order.total)]], colWidths=[135 * mm, 39 * mm], hAlign="RIGHT")
+    total = Table([["TOTAL", _currency(order.total)]], colWidths=[144 * mm, 30 * mm], hAlign="RIGHT")
     total.setStyle(TableStyle([("TOPPADDING", (0, 0), (-1, -1), 10), ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 13), ("ALIGN", (1, 0), (1, 0), "RIGHT"), ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#172B4D"))]))
     story.extend([details, Spacer(1, 3 * mm), summary, total])
     document.build(story)
@@ -132,7 +133,7 @@ def _build_order_message(
     customer_phone = order.cliente.celular or "Sin teléfono"
     address = ", ".join(part for part in (order.direccion.direccion, order.direccion.comuna) if part) or "Sin dirección"
     detail_rows = "".join(
-        f"<tr><td style='padding:7px;border-top:1px solid #d9e2ec'><strong>{html.escape(detail.nombre_producto)}</strong><br><span style='color:#667085;font-size:12px'>{html.escape(detail.codigo_producto)}</span></td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:center'>{'Afecto' if getattr(detail, 'afecto', True) else 'Exento'}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:center'>{_quantity(detail.cantidad)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.precio_unitario)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.subtotal)}</td></tr>"
+        f"<tr><td style='padding:7px;border-top:1px solid #d9e2ec'><strong>{html.escape(detail.nombre_producto)}</strong><br><span style='color:#667085;font-size:12px'>{html.escape(detail.codigo_producto)}</span></td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:center'>{_quantity(detail.cantidad)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.precio_unitario)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.subtotal)}</td></tr>"
         for detail in order.detalles
     )
     message = EmailMessage()
@@ -151,7 +152,7 @@ def _build_order_message(
 <div style='padding:28px 32px;background:#102a43;color:#ffffff'><div style='font-size:22px;font-weight:700'>Santa Mena</div><div style='margin-top:8px;color:#9bceff;font-size:12px;font-weight:700;letter-spacing:1px'>{heading}</div><div style='margin-top:6px;font-size:25px;font-weight:700'>Pedido #{order_code}</div></div>
 <div style='padding:28px 32px'><p style='margin-top:0'>{introduction}</p>
 {customer_block}
-<table style='width:100%;border-collapse:collapse;margin-top:22px'><thead><tr style='background:#f8fafc;color:#667085;font-size:12px;text-align:left'><th style='padding:7px'>Producto</th><th style='padding:7px;text-align:center'>Tributación</th><th style='padding:7px;text-align:center'>Cant.</th><th style='padding:7px;text-align:right'>Unitario</th><th style='padding:7px;text-align:right'>Subtotal</th></tr></thead><tbody>{detail_rows}</tbody></table>
+<table style='width:100%;border-collapse:collapse;margin-top:22px'><thead><tr style='background:#f8fafc;color:#667085;font-size:12px;text-align:left'><th style='padding:7px'>Producto</th><th style='padding:7px;text-align:center'>Cant.</th><th style='padding:7px;text-align:right'>Unitario</th><th style='padding:7px;text-align:right'>Subtotal</th></tr></thead><tbody>{detail_rows}</tbody></table>
 <div style='margin-top:20px;padding-top:16px;border-top:1px solid #d9e2ec;text-align:right;font-size:19px;font-weight:700'>Total: {_currency(order.total)}</div>
 <p style='margin:24px 0 0;color:#667085;font-size:12px'>Se adjunta el comprobante PDF con el detalle del pedido.</p></div></div></body></html>""",
         subtype="html",

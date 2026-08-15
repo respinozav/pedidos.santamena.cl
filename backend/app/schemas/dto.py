@@ -100,6 +100,7 @@ class CustomerInput(BaseModel):
     celular: str | None = Field(default=None, max_length=30)
     correo: EmailStr | None = None
     porcentaje: Decimal = Field(default=0, ge=0, le=100, max_digits=5, decimal_places=2)
+    con_decimal: bool = False
     activo: bool = True
 
     @field_validator("rut", "nombre", "celular", mode="before")
