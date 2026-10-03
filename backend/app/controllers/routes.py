@@ -292,6 +292,12 @@ def order_pdf(order_id: UUID, database: DatabaseSession, _: AdminUser) -> Respon
     return Response(content=content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="pedido-{code}.pdf"'})
 
 
+@router.post("/pedidos/pdf-bulk", tags=["Pedidos"])
+def orders_pdf_bulk(order_ids: list[UUID], database: DatabaseSession, _: AdminUser) -> Response:
+    content = OrderService(database).pdf_bulk(order_ids)
+    return Response(content=content, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="pedidos.pdf"'})
+
+
 @router.get("/creditos", response_model=list[CreditOutput], tags=["Créditos"])
 def list_credits(database: DatabaseSession, _: AdminUser, pagado: bool = False) -> list[Credito]:
     statement = (

@@ -1269,6 +1269,7 @@ function AdminOrderManager() {
   const [deliveryPayment, setDeliveryPayment] = useState(null);
   const [creditDays, setCreditDays] = useState("");
   const [creditOrder, setCreditOrder] = useState(null);
+  const [selectedOrdersForPdf, setSelectedOrdersForPdf] = useState(new Set());
 
   async function loadOrders() {
     try {
@@ -1360,6 +1361,33 @@ function AdminOrderManager() {
     link.download = `pedido-${code}.pdf`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handlePdfCheckbox(orderId, checked) {
+    setSelectedOrdersForPdf((current) => {
+      const updated = new Set(current);
+      if (checked) {
+        updated.add(orderId);
+      } else {
+        updated.delete(orderId);
+      }
+      return updated;
+    });
+  }
+
+  async function exportSelectedPdfs() {
+    if (selectedOrdersForPdf.size === 0) return;
+    try {
+      const { data } = await api.post("/pedidos/pdf-bulk", Array.from(selectedOrdersForPdf), { responseType: "blob" });
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "pedidos.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("No fue posible exportar los PDFs seleccionados.");
+    }
   }
 
   useEffect(() => {
@@ -1532,6 +1560,14 @@ function AdminOrderManager() {
                 }
               />
             </label>
+            <button
+              className="btn btn-primary mt-auto"
+              type="button"
+              disabled={selectedOrdersForPdf.size === 0}
+              onClick={exportSelectedPdfs}
+            >
+              Exportar PDF
+            </button>
           </div>
           {notice && (
             <div className="alert alert-success mt-3 mb-0 category-notice">
@@ -1556,6 +1592,7 @@ function AdminOrderManager() {
                 <span>Estado</span>
                 <span>Total</span>
                 <span>Acciones</span>
+                <span>Exportar PDF</span>
               </div>
               {visibleOrders.map((order) => (
                 <article className="admin-order-row" key={order.id}>
@@ -1595,6 +1632,13 @@ function AdminOrderManager() {
                   >
                     <Eye size={16} />
                   </button>
+                  <input
+                    className="form-check-input pdf-checkbox"
+                    type="checkbox"
+                    checked={selectedOrdersForPdf.has(order.id)}
+                    onChange={(event) => handlePdfCheckbox(order.id, event.target.checked)}
+                    aria-label={`Seleccionar pedido ${order.id.slice(0, 8).toUpperCase()} para PDF`}
+                  />
                 </article>
               ))}
               {!visibleOrders.length && (

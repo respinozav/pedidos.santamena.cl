@@ -124,6 +124,10 @@ class OrderService:
         self.database.commit()
         return self.get(order.id)
 
+    def pdf_bulk(self, order_ids: list[UUID]) -> bytes:
+        orders = [self.get(order_id) for order_id in order_ids]
+        from app.services.notifications import _orders_pdf
+        return _orders_pdf(orders)
 
 class CustomerAccessService:
     def __init__(self, database: Session):

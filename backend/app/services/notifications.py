@@ -12,7 +12,7 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, PageBreak
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -43,14 +43,7 @@ def _tax_totals(details: list[object]) -> dict[bool, tuple[Decimal, Decimal]]:
     return {taxable: (values[0], values[1]) for taxable, values in totals.items()}
 
 
-def _order_pdf(order: Pedido) -> bytes:
-    customer_name = order.cliente.nombre or order.cliente.rut or order.cliente.celular or "Cliente"
-    customer_id = order.cliente.rut or order.cliente.celular or "Sin identificador"
-    customer_email = order.cliente.correo or "Sin correo"
-    customer_phone = order.cliente.celular or "Sin teléfono"
-    address = ", ".join(part for part in (order.direccion.direccion, order.direccion.comuna) if part)
-    order_code = str(order.id).split("-")[0].upper()
-    created_at = order.created_at.astimezone().strftime("%d-%m-%Y %H:%M") if order.created_at else "-"
+def _orders_pdf(orders: list[Pedido]) -> bytes:
     output = BytesIO()
     document = SimpleDocTemplate(output, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm, topMargin=18 * mm, bottomMargin=18 * mm)
     styles = getSampleStyleSheet()
@@ -58,63 +51,80 @@ def _order_pdf(order: Pedido) -> bytes:
     styles.add(ParagraphStyle(name="OrderCode", parent=styles["Normal"], alignment=TA_RIGHT, fontName="Helvetica-Bold", fontSize=14, textColor=colors.HexColor("#172B4D")))
     styles.add(ParagraphStyle(name="Details", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#334E68")))
     story = []
-    brand = Image(str(LOGO_PATH), width=45 * mm, height=30 * mm, kind="proportional") if LOGO_PATH.is_file() else Paragraph("Santa Mena", styles["Brand"])
-    header = Table([[brand, Paragraph(f"PEDIDO #{order_code}", styles["OrderCode"])]], colWidths=[95 * mm, 79 * mm])
-    header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LINEBELOW", (0, 0), (-1, -1), 1.2, colors.HexColor("#D44B58")), ("BOTTOMPADDING", (0, 0), (-1, -1), 10)]))
-    story.extend([header, Spacer(1, 8 * mm)])
-    customer_details = "<br/>".join((
-        f"<b>Cliente:</b> {html.escape(customer_name)}",
-        f"<b>Identificador:</b> {html.escape(customer_id)}",
-        f"<b>Correo:</b> {html.escape(customer_email)}",
-        f"<b>Teléfono:</b> {html.escape(customer_phone)}",
-        f"<b>Fecha del pedido:</b> {created_at}",
-        f"<b>Dirección de despacho:</b> {html.escape(address or 'Sin dirección registrada')}",
-    ))
-    story.extend([Paragraph(customer_details, styles["Details"]), Spacer(1, 7 * mm)])
-    detail_widths = [26 * mm, 74 * mm, 18 * mm, 26 * mm, 30 * mm]
-    rows = [["Código", "Producto", "Cant.", "Precio", "Subtotal"]]
-    for detail in order.detalles:
-        rows.append([html.escape(detail.codigo_producto), Paragraph(f"<b>{html.escape(detail.nombre_producto)}</b>", styles["Details"]), _quantity(detail.cantidad), _currency(detail.precio_unitario), _currency(detail.subtotal)])
-    details = Table(rows, colWidths=detail_widths, repeatRows=1)
-    details.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF4FF")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#334E68")),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("ALIGN", (2, 0), (2, -1), "CENTER"),
-        ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-    tax_totals = _tax_totals(order.detalles)
-    summary = Table([
-        ["Exento", "", _quantity(tax_totals[False][0]), _currency(tax_totals[False][1]), ""],
-        ["Afecto", "", _quantity(tax_totals[True][0]), _currency(tax_totals[True][1]), ""],
-    ], colWidths=detail_widths)
-    summary.setStyle(TableStyle([
-        ("SPAN", (0, 0), (1, 0)),
-        ("SPAN", (0, 1), (1, 1)),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("ALIGN", (2, 0), (2, -1), "CENTER"),
-        ("ALIGN", (3, 0), (3, -1), "RIGHT"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#334E68")),
-    ]))
-    total = Table([["TOTAL", _currency(order.total)]], colWidths=[144 * mm, 30 * mm], hAlign="RIGHT")
-    total.setStyle(TableStyle([("TOPPADDING", (0, 0), (-1, -1), 10), ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 13), ("ALIGN", (1, 0), (1, 0), "RIGHT"), ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#172B4D"))]))
-    story.extend([details, Spacer(1, 3 * mm), summary, total])
+    
+    for idx, order in enumerate(orders):
+        customer_name = order.cliente.nombre or order.cliente.rut or order.cliente.celular or "Cliente"
+        customer_id = order.cliente.rut or order.cliente.celular or "Sin identificador"
+        customer_email = order.cliente.correo or "Sin correo"
+        customer_phone = order.cliente.celular or "Sin teléfono"
+        address = ", ".join(part for part in (order.direccion.direccion, order.direccion.comuna) if part)
+        order_code = str(order.id).split("-")[0].upper()
+        created_at = order.created_at.astimezone().strftime("%d-%m-%Y %H:%M") if order.created_at else "-"
+        brand = Image(str(LOGO_PATH), width=45 * mm, height=30 * mm, kind="proportional") if LOGO_PATH.is_file() else Paragraph("Santa Mena", styles["Brand"])
+        header = Table([[brand, Paragraph(f"PEDIDO #{order_code}", styles["OrderCode"])]], colWidths=[95 * mm, 79 * mm])
+        header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LINEBELOW", (0, 0), (-1, -1), 1.2, colors.HexColor("#D44B58")), ("BOTTOMPADDING", (0, 0), (-1, -1), 10)]))
+        story.extend([header, Spacer(1, 8 * mm)])
+        customer_details = "<br/>".join((
+            f"<b>Cliente:</b> {html.escape(customer_name)}",
+            f"<b>Identificador:</b> {html.escape(customer_id)}",
+            f"<b>Correo:</b> {html.escape(customer_email)}",
+            f"<b>Teléfono:</b> {html.escape(customer_phone)}",
+            f"<b>Fecha del pedido:</b> {created_at}",
+            f"<b>Dirección de despacho:</b> {html.escape(address or 'Sin dirección registrada')}",
+        ))
+        story.extend([Paragraph(customer_details, styles["Details"]), Spacer(1, 7 * mm)])
+        detail_widths = [26 * mm, 74 * mm, 18 * mm, 26 * mm, 30 * mm]
+        rows = [["Código", "Producto", "Cant.", "Precio", "Subtotal"]]
+        for detail in order.detalles:
+            rows.append([html.escape(detail.codigo_producto), Paragraph(f"<b>{html.escape(detail.nombre_producto)}</b>", styles["Details"]), _quantity(detail.cantidad), _currency(detail.precio_unitario), _currency(detail.subtotal)])
+        details = Table(rows, colWidths=detail_widths, repeatRows=1)
+        details.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF4FF")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#334E68")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ALIGN", (2, 0), (2, -1), "CENTER"),
+            ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ]))
+        tax_totals = _tax_totals(order.detalles)
+        summary = Table([
+            ["Exento", "", _quantity(tax_totals[False][0]), _currency(tax_totals[False][1]), ""],
+            ["Afecto", "", _quantity(tax_totals[True][0]), _currency(tax_totals[True][1]), ""],
+        ], colWidths=detail_widths)
+        summary.setStyle(TableStyle([
+            ("SPAN", (0, 0), (1, 0)),
+            ("SPAN", (0, 1), (1, 1)),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ALIGN", (2, 0), (2, -1), "CENTER"),
+            ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#334E68")),
+        ]))
+        total = Table([["TOTAL", _currency(order.total)]], colWidths=[144 * mm, 30 * mm], hAlign="RIGHT")
+        total.setStyle(TableStyle([("TOPPADDING", (0, 0), (-1, -1), 10), ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 13), ("ALIGN", (1, 0), (1, 0), "RIGHT"), ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#172B4D"))]))
+        story.extend([details, Spacer(1, 3 * mm), summary, total])
+        
+        if idx < len(orders) - 1:
+            story.append(PageBreak())
+
     document.build(story)
     return output.getvalue()
+
+
+def _order_pdf(order: Pedido) -> bytes:
+    return _orders_pdf([order])
 
 
 def _build_order_message(
