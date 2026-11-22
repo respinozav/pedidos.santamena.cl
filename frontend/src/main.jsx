@@ -2957,6 +2957,8 @@ function Shop({ customer, onLogout }) {
   const [totalProducts, setTotalProducts] = useState(0);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [brands, setBrands] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [cart, setCart] = useState([]);
@@ -2971,7 +2973,16 @@ function Shop({ customer, onLogout }) {
 
   async function loadProducts() {
     try {
-      const { data } = await api.get("/productos", { params: { category_id: selectedCategory || undefined, search: query || undefined, customer_id: customer.id, page, page_size: 10 } });
+      const { data } = await api.get("/productos", {
+        params: {
+          category_id: selectedCategory || undefined,
+          brand_id: selectedBrand || undefined,
+          search: query || undefined,
+          customer_id: customer.id,
+          page,
+          page_size: 10,
+        },
+      });
       setProducts(data.items);
       setTotalProducts(data.total);
     } catch {
@@ -2979,34 +2990,28 @@ function Shop({ customer, onLogout }) {
     }
   }
 
-  useEffect(() => { setPage(1); }, [query, selectedCategory]);
+  useEffect(() => { setPage(1); }, [query, selectedCategory, selectedBrand]);
 
   useEffect(() => {
     const timer = setTimeout(loadProducts, 200);
     return () => clearTimeout(timer);
-  }, [query, selectedCategory, customer.id, page]);
+  }, [query, selectedCategory, selectedBrand, customer.id, page]);
 
   useEffect(() => {
     api.get("/categorias").then(({ data }) => setCategories(data)).catch(() => setError("No fue posible cargar las categorías."));
+    api.get("/marcas", { params: { active_only: true } }).then(({ data }) => setBrands(data)).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (section !== "create") return undefined;
-    const searchField = document.querySelector(".customer-workspace .search-field");
-    if (!searchField || searchField.previousElementSibling?.classList.contains("customer-product-filters")) return undefined;
-    const filters = document.createElement("div");
-    filters.className = "customer-product-filters";
-    const categorySelect = document.createElement("select");
-    categorySelect.className = "form-select";
-    categorySelect.setAttribute("aria-label", "Filtrar productos por categoría");
-    categorySelect.append(new Option("Todas las categorías", ""));
-    categories.forEach((category) => categorySelect.append(new Option(category.nombre, category.id)));
-    categorySelect.value = selectedCategory;
-    categorySelect.addEventListener("change", (event) => { setSelectedCategory(event.target.value); setPage(1); });
-    filters.append(categorySelect);
-    searchField.before(filters);
-    return () => filters.remove();
-  }, [categories, section]);
+    if (selectedCategory && selectedBrand) {
+      const exists = brands.some((b) => b.id === selectedBrand && b.categoria_id === selectedCategory);
+      if (!exists) {
+        setSelectedBrand("");
+      }
+    }
+  }, [selectedCategory, selectedBrand, brands]);
+
+  const availableBrands = brands.filter((brand) => !selectedCategory || brand.categoria_id === selectedCategory);
 
   useEffect(() => {
     const productGrid = document.querySelector(".customer-workspace .product-grid");
@@ -3304,6 +3309,41 @@ function Shop({ customer, onLogout }) {
           {section === "create" ? (
             <div className="row g-4">
               <section className="col-xl-8">
+                <div className="customer-product-filters">
+                  <select
+                    className="form-select"
+                    value={selectedCategory}
+                    onChange={(event) => {
+                      setSelectedCategory(event.target.value);
+                      setSelectedBrand("");
+                    }}
+                    aria-label="Filtrar productos por categoría"
+                  >
+                    <option value="">Todas las categorías</option>
+                    {categories
+                      .filter((category) => category.activo)
+                      .map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.nombre}
+                        </option>
+                      ))}
+                  </select>
+                  <select
+                    className="form-select"
+                    value={selectedBrand}
+                    onChange={(event) => setSelectedBrand(event.target.value)}
+                    aria-label="Filtrar productos por marca"
+                  >
+                    <option value="">Todas las marcas</option>
+                    {availableBrands
+                      .filter((brand) => brand.activo)
+                      .map((brand) => (
+                        <option key={brand.id} value={brand.id}>
+                          {brand.nombre} {!selectedCategory && brand.categoria?.nombre ? `(${brand.categoria.nombre})` : ""}
+                        </option>
+                      ))}
+                  </select>
+                </div>
                 <div className="search-field">
                   <Search size={20} />
                   <input

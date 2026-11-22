@@ -260,7 +260,9 @@ def list_products(
         .options(selectinload(Producto.marca).selectinload(Marca.categoria))
         .where(Producto.eliminado_at.is_(None), Producto.activo.is_(True))
     )
-    if brand_id:
+    if brand_id and category_id:
+        statement = statement.join(Producto.marca).where(Producto.marca_id == brand_id, Marca.categoria_id == category_id)
+    elif brand_id:
         statement = statement.where(Producto.marca_id == brand_id)
     elif category_id:
         statement = statement.join(Producto.marca).where(Marca.categoria_id == category_id)
@@ -300,7 +302,9 @@ def list_admin_products(
         .options(selectinload(Producto.marca).selectinload(Marca.categoria))
         .where(Producto.eliminado_at.is_(None))
     )
-    if brand_id:
+    if brand_id and category_id:
+        statement = statement.join(Producto.marca).where(Producto.marca_id == brand_id, Marca.categoria_id == category_id)
+    elif brand_id:
         statement = statement.where(Producto.marca_id == brand_id)
     elif category_id:
         statement = statement.join(Producto.marca).where(Marca.categoria_id == category_id)
