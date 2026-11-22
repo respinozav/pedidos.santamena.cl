@@ -70,7 +70,28 @@ class Categoria(AuditMixin, Base):
     porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    productos: Mapped[list["Producto"]] = relationship(back_populates="categoria")
+    marcas: Mapped[list["Marca"]] = relationship(back_populates="categoria")
+
+    @property
+    def productos(self) -> list["Producto"]:
+        result: list[Producto] = []
+        for m in self.marcas:
+            result.extend(m.productos)
+        return result
+
+
+class Marca(AuditMixin, Base):
+    __tablename__ = "marcas"
+    __table_args__ = (Index("ix_marcas_nombre_categoria", "nombre", "categoria_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    categoria_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categorias.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(120), index=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    categoria: Mapped[Categoria] = relationship(back_populates="marcas")
+    productos: Mapped[list["Producto"]] = relationship(back_populates="marca")
 
 
 class Producto(AuditMixin, Base):
@@ -78,7 +99,7 @@ class Producto(AuditMixin, Base):
     __table_args__ = (Index("ix_productos_nombre_activo", "nombre", "activo"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    categoria_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categorias.id"), index=True)
+    marca_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("marcas.id"), index=True)
     codigointerno: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     nombre: Mapped[str] = mapped_column(String(180), index=True)
     precio: Mapped[Decimal] = mapped_column(Numeric(12, 2))
@@ -87,7 +108,15 @@ class Producto(AuditMixin, Base):
     afecto: Mapped[bool] = mapped_column(Boolean, default=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    categoria: Mapped[Categoria] = relationship(back_populates="productos")
+    marca: Mapped[Marca] = relationship(back_populates="productos")
+
+    @property
+    def categoria(self) -> Categoria | None:
+        return self.marca.categoria if self.marca else None
+
+    @property
+    def categoria_id(self) -> uuid.UUID | None:
+        return self.marca.categoria_id if self.marca else None
 
     @property
     def codigo(self) -> str:

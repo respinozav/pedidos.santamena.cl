@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.dependencies import AdminUser, DatabaseSession
 from app.core.config import get_settings
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models.entities import Categoria, Cliente, CodigoExterno, Credito, Direccion, Estado, Porcentaje, Producto, Rol, Usuario
+from app.models.entities import Categoria, Cliente, CodigoExterno, Credito, Direccion, Estado, Marca, Porcentaje, Producto, Rol, Usuario
 from app.repositories.base import Repository
 from app.schemas.dto import (
     AddressInput,
     AddressOutput,
+    BrandInput,
+    BrandOutput,
     CategoryInput,
     CategoryOutput,
     CreditOutput,
@@ -143,6 +145,88 @@ def delete_category(category_id: UUID, database: DatabaseSession, _: AdminUser) 
     database.commit()
 
 
+@router.get("/marcas", response_model=list[BrandOutput], tags=["Marcas"])
+def list_brands(
+    database: DatabaseSession,
+    active_only: bool = False,
+    category_id: UUID | None = None,
+) -> list[Marca]:
+    statement = (
+        select(Marca)
+        .options(selectinload(Marca.categoria))
+        .where(Marca.eliminado_at.is_(None))
+    )
+    if active_only:
+        statement = statement.where(Marca.activo.is_(True))
+    if category_id:
+        statement = statement.where(Marca.categoria_id == category_id)
+    return list(database.scalars(statement.order_by(Marca.nombre)))
+
+
+@router.post("/marcas", response_model=BrandOutput, status_code=status.HTTP_201_CREATED, tags=["Marcas"])
+def create_brand(payload: BrandInput, database: DatabaseSession, _: AdminUser) -> Marca:
+    category = database.get(Categoria, payload.categoria_id)
+    if not category or category.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Categoría no encontrada")
+    duplicate = database.scalar(
+        select(Marca.id).where(
+            func.lower(Marca.nombre) == payload.nombre.lower(),
+            Marca.categoria_id == payload.categoria_id,
+            Marca.eliminado_at.is_(None),
+        )
+    )
+    if duplicate:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Ya existe una marca con este nombre en la categoría seleccionada",
+        )
+    entity = Repository(Marca, database).add(Marca(**payload.model_dump()))
+    database.commit()
+    database.refresh(entity, attribute_names=["categoria"])
+    return entity
+
+
+@router.put("/marcas/{brand_id}", response_model=BrandOutput, tags=["Marcas"])
+def update_brand(
+    brand_id: UUID,
+    payload: BrandInput,
+    database: DatabaseSession,
+    _: AdminUser,
+) -> Marca:
+    entity = Repository(Marca, database).get(brand_id)
+    if not entity or entity.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Marca no encontrada")
+    category = database.get(Categoria, payload.categoria_id)
+    if not category or category.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Categoría no encontrada")
+    duplicate = database.scalar(
+        select(Marca.id).where(
+            func.lower(Marca.nombre) == payload.nombre.lower(),
+            Marca.categoria_id == payload.categoria_id,
+            Marca.id != brand_id,
+            Marca.eliminado_at.is_(None),
+        )
+    )
+    if duplicate:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Ya existe una marca con este nombre en la categoría seleccionada",
+        )
+    Repository(Marca, database).update(entity, payload.model_dump())
+    database.commit()
+    database.refresh(entity, attribute_names=["categoria"])
+    return entity
+
+
+@router.delete("/marcas/{brand_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Marcas"])
+def delete_brand(brand_id: UUID, database: DatabaseSession, _: AdminUser) -> None:
+    entity = Repository(Marca, database).get(brand_id)
+    if not entity or entity.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Marca no encontrada")
+    Repository(Marca, database).soft_delete(entity)
+    database.commit()
+
+
 def get_next_codigointerno(database: Session) -> str:
     bind = database.get_bind()
     if bind and bind.dialect.name == "postgresql":
@@ -165,14 +249,21 @@ def get_next_codigointerno(database: Session) -> str:
 def list_products(
     database: DatabaseSession,
     category_id: UUID | None = None,
+    brand_id: UUID | None = None,
     search: str | None = Query(default=None, max_length=180),
     customer_id: UUID | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=10),
 ) -> ProductPage:
-    statement = select(Producto).options(selectinload(Producto.categoria)).where(Producto.eliminado_at.is_(None), Producto.activo.is_(True))
-    if category_id:
-        statement = statement.where(Producto.categoria_id == category_id)
+    statement = (
+        select(Producto)
+        .options(selectinload(Producto.marca).selectinload(Marca.categoria))
+        .where(Producto.eliminado_at.is_(None), Producto.activo.is_(True))
+    )
+    if brand_id:
+        statement = statement.where(Producto.marca_id == brand_id)
+    elif category_id:
+        statement = statement.join(Producto.marca).where(Marca.categoria_id == category_id)
     if search:
         statement = statement.where(
             Producto.nombre.ilike(f"%{search}%") | Producto.codigointerno.ilike(f"%{search}%")
@@ -181,7 +272,12 @@ def list_products(
     total = database.scalar(select(func.count()).select_from(statement.subquery())) or 0
     products = database.scalars(statement.order_by(Producto.nombre).offset((page - 1) * page_size).limit(page_size))
     return ProductPage(
-        items=[ProductOutput.model_validate(product, from_attributes=True).model_copy(update={"precio_cliente": customer_product_price(product, customer) if customer else None}) for product in products],
+        items=[
+            ProductOutput.model_validate(product, from_attributes=True).model_copy(
+                update={"precio_cliente": customer_product_price(product, customer) if customer else None}
+            )
+            for product in products
+        ],
         total=total,
         page=page,
         page_size=page_size,
@@ -193,14 +289,21 @@ def list_admin_products(
     database: DatabaseSession,
     _: AdminUser,
     category_id: UUID | None = None,
+    brand_id: UUID | None = None,
     search: str | None = Query(default=None, max_length=180),
     stock_lt: Decimal | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=10),
 ) -> ProductPage:
-    statement = select(Producto).where(Producto.eliminado_at.is_(None))
-    if category_id:
-        statement = statement.where(Producto.categoria_id == category_id)
+    statement = (
+        select(Producto)
+        .options(selectinload(Producto.marca).selectinload(Marca.categoria))
+        .where(Producto.eliminado_at.is_(None))
+    )
+    if brand_id:
+        statement = statement.where(Producto.marca_id == brand_id)
+    elif category_id:
+        statement = statement.join(Producto.marca).where(Marca.categoria_id == category_id)
     if search:
         statement = statement.where(
             Producto.nombre.ilike(f"%{search}%") | Producto.codigointerno.ilike(f"%{search}%")
@@ -214,6 +317,9 @@ def list_admin_products(
 
 @router.post("/productos", response_model=ProductOutput, status_code=status.HTTP_201_CREATED, tags=["Productos"])
 def create_product(payload: ProductInput, database: DatabaseSession, _: AdminUser) -> Producto:
+    marca = database.get(Marca, payload.marca_id)
+    if not marca or marca.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Marca no encontrada")
     values = payload.model_dump()
     if not values.get("codigointerno"):
         values["codigointerno"] = get_next_codigointerno(database)
@@ -225,6 +331,7 @@ def create_product(payload: ProductInput, database: DatabaseSession, _: AdminUse
         raise HTTPException(status.HTTP_409_CONFLICT, "El código de producto ya existe")
     entity = Repository(Producto, database).add(Producto(**values))
     database.commit()
+    database.refresh(entity, attribute_names=["marca"])
     return entity
 
 
@@ -233,6 +340,9 @@ def update_product(product_id: UUID, payload: ProductInput, database: DatabaseSe
     entity = Repository(Producto, database).get(product_id)
     if not entity or entity.eliminado_at:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Producto no encontrado")
+    marca = database.get(Marca, payload.marca_id)
+    if not marca or marca.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Marca no encontrada")
     values = payload.model_dump()
     if not values.get("codigointerno"):
         values["codigointerno"] = entity.codigointerno
@@ -247,6 +357,7 @@ def update_product(product_id: UUID, payload: ProductInput, database: DatabaseSe
         raise HTTPException(status.HTTP_409_CONFLICT, "El código de producto ya existe")
     Repository(Producto, database).update(entity, values)
     database.commit()
+    database.refresh(entity, attribute_names=["marca"])
     return entity
 
 
@@ -316,7 +427,11 @@ def delete_percentage(percentage_id: UUID, database: DatabaseSession, _: AdminUs
 
 @router.get("/productos/selector", response_model=list[ProductOutput], tags=["Productos"])
 def list_products_for_selector(database: DatabaseSession, _: AdminUser, active_only: bool = True) -> list[Producto]:
-    statement = select(Producto).where(Producto.eliminado_at.is_(None))
+    statement = (
+        select(Producto)
+        .options(selectinload(Producto.marca).selectinload(Marca.categoria))
+        .where(Producto.eliminado_at.is_(None))
+    )
     if active_only:
         statement = statement.where(Producto.activo.is_(True))
     return list(database.scalars(statement.order_by(Producto.nombre)))

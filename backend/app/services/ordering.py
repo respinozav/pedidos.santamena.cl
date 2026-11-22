@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.entities import Cliente, Credito, DetallePedido, Direccion, Estado, Pedido, Producto
+from app.models.entities import Cliente, Credito, DetallePedido, Direccion, Estado, Marca, Pedido, Producto
 from app.repositories.base import Repository
 from app.schemas.dto import OrderCreate
 from app.services.notifications import _order_pdf, notify_administrators_of_order
@@ -27,7 +27,7 @@ class OrderService:
         products = {
             product.id: product
             for product in self.database.scalars(
-                select(Producto).options(selectinload(Producto.categoria)).where(Producto.id.in_(product_ids))
+                select(Producto).options(selectinload(Producto.marca).selectinload(Marca.categoria)).where(Producto.id.in_(product_ids))
             )
         }
         if len(products) != len(set(product_ids)):

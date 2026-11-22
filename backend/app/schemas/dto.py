@@ -27,8 +27,24 @@ class CategoryOutput(CategoryInput, ORMModel):
     id: UUID
 
 
-class ProductInput(BaseModel):
+class BrandInput(BaseModel):
     categoria_id: UUID
+    nombre: str = Field(min_length=1, max_length=120)
+    activo: bool = True
+
+    @field_validator("nombre")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        return value.strip().upper()
+
+
+class BrandOutput(BrandInput, ORMModel):
+    id: UUID
+    categoria: CategoryOutput | None = None
+
+
+class ProductInput(BaseModel):
+    marca_id: UUID = Field(validation_alias=AliasChoices("marca_id", "categoria_id"))
     codigointerno: str | None = Field(
         default=None,
         max_length=50,
@@ -78,12 +94,17 @@ class ProductOutput(ProductInput, ORMModel):
     id: UUID
     codigointerno: str
     codigo: str | None = None
+    marca_id: UUID
+    marca: BrandOutput | None = None
+    categoria_id: UUID | None = None
     precio_cliente: Decimal | None = None
 
     @model_validator(mode="after")
-    def sync_codigo(self) -> "ProductOutput":
+    def sync_legacy_fields(self) -> "ProductOutput":
         if not self.codigo and self.codigointerno:
             self.codigo = self.codigointerno
+        if not self.categoria_id and self.marca and self.marca.categoria_id:
+            self.categoria_id = self.marca.categoria_id
         return self
 
 

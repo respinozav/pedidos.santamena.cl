@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, Hash, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Percent, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
+import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, Hash, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Percent, Plus, Save, Search, Settings, ShoppingBag, Tag, Users, X } from "lucide-react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 import { api, setAdminToken } from "./services/api";
@@ -132,9 +132,273 @@ function AdminAccess({ onLogin, onCustomerAccess }) {
   </form></main>;
 }
 
-function ProductManager({ categories }) {
-  const blankProduct = {
+function BrandManager({ categories, brands = [], onReload }) {
+  const [items, setItems] = useState(brands);
+  const [loading, setLoading] = useState(!brands.length);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const [form, setForm] = useState({
     categoria_id: "",
+    nombre: "",
+    activo: true,
+  });
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/marcas");
+      setItems(data);
+      if (onReload) onReload();
+    } catch {
+      setError("No fue posible cargar las marcas.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  function setField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function openCreate() {
+    setEditingItem(null);
+    setForm({
+      categoria_id: categories.find((c) => c.activo)?.id ?? (categories[0]?.id || ""),
+      nombre: "",
+      activo: true,
+    });
+    setError("");
+    setModalOpen(true);
+  }
+
+  function openEdit(item) {
+    setEditingItem(item);
+    setForm({
+      categoria_id: item.categoria_id,
+      nombre: item.nombre,
+      activo: item.activo,
+    });
+    setError("");
+    setModalOpen(true);
+  }
+
+  async function saveBrand(event) {
+    event.preventDefault();
+    if (!form.categoria_id) {
+      setError("Selecciona una categoría.");
+      return;
+    }
+    if (!form.nombre.trim()) {
+      setError("Ingresa el nombre de la marca.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      categoria_id: form.categoria_id,
+      nombre: form.nombre.trim().toUpperCase(),
+      activo: form.activo,
+    };
+    try {
+      if (editingItem) {
+        await api.put(`/marcas/${editingItem.id}`, payload);
+        setNotice("Marca actualizada correctamente.");
+      } else {
+        await api.post("/marcas", payload);
+        setNotice("Marca agregada correctamente.");
+      }
+      setModalOpen(false);
+      setEditingItem(null);
+      setError("");
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible guardar la marca. Revisa que no esté duplicada en la misma categoría.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const categoryName = (catId) => categories.find((c) => c.id === catId)?.nombre ?? "-";
+
+  return (
+    <>
+      <header className="admin-topbar">
+        <div className="topbar-title">
+          <p className="eyebrow mb-1">CATALOGO</p>
+          <h1>Marcas</h1>
+        </div>
+        <div className="topbar-actions">
+          <span className="topbar-date d-none d-sm-inline">Gestión de Marcas</span>
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={18} />
+            Nueva marca
+          </button>
+        </div>
+      </header>
+      <div className="admin-content">
+        <section className="admin-summary">
+          <div>
+            <p className="eyebrow">INVENTARIO</p>
+            <h2>Marcas por Categoría</h2>
+            <p>Estructura anidada: Categoría &rarr; Marca &rarr; Producto.</p>
+          </div>
+          <div className="summary-metric">
+            <span>{items.length}</span>
+            <small>Marcas registradas</small>
+          </div>
+        </section>
+        <section className="content-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Listado de marcas</h2>
+              <p>Marcas activas e inactivas organizadas por categoría.</p>
+            </div>
+            <span className="panel-count">{items.length} registros</span>
+          </div>
+          {notice && (
+            <div className="alert alert-success alert-dismissible fade show mt-3 category-notice">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button className="btn-close" type="button" onClick={() => setNotice("")} />
+            </div>
+          )}
+          {error && !modalOpen && <div className="alert alert-danger mt-3">{error}</div>}
+          {loading ? (
+            <p className="mt-4 text-secondary">Cargando marcas...</p>
+          ) : (
+            <div className="brand-table mt-4">
+              <div className="brand-table-head">
+                <span>Marca</span>
+                <span>Categoría</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
+              {items.length ? (
+                items.map((item) => (
+                  <div className="brand-row" key={item.id}>
+                    <div className="category-name">
+                      <span className="category-icon">
+                        <Tag size={18} />
+                      </span>
+                      <strong>{item.nombre}</strong>
+                    </div>
+                    <span className="brand-category">{item.categoria?.nombre || categoryName(item.categoria_id)}</span>
+                    <span className={item.activo ? "status-active" : "status-inactive"}>
+                      {item.activo ? "Activa" : "Inactiva"}
+                    </span>
+                    <div className="d-flex gap-1">
+                      <button
+                        className="icon-button category-edit"
+                        onClick={() => openEdit(item)}
+                        aria-label={`Editar ${item.nombre}`}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-secondary p-4 mb-0">Aún no hay marcas registradas. Agrega la primera para comenzar.</p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+      {modalOpen && (
+        <div className="modal-backdrop-custom">
+          <form className="category-modal" onSubmit={saveBrand} role="dialog" aria-modal="true">
+            <header>
+              <div>
+                <p className="eyebrow">MARCA</p>
+                <h2>{editingItem ? "Editar marca" : "Nueva marca"}</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setModalOpen(false)}
+                aria-label="Cerrar modal"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              {error && <div className="alert alert-danger mb-3">{error}</div>}
+              <div>
+                <label className="form-label" htmlFor="brand-category">
+                  Categoría
+                </label>
+                <select
+                  id="brand-category"
+                  className="form-select"
+                  value={form.categoria_id}
+                  onChange={(event) => setField("categoria_id", event.target.value)}
+                  required
+                >
+                  <option value="">Selecciona una categoría</option>
+                  {categories
+                    .filter((c) => c.activo || c.id === form.categoria_id)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="mt-3">
+                <label className="form-label" htmlFor="brand-name">
+                  Nombre de la marca
+                </label>
+                <input
+                  id="brand-name"
+                  className="form-control"
+                  value={form.nombre}
+                  onChange={(event) => setField("nombre", event.target.value.toUpperCase())}
+                  maxLength="120"
+                  required
+                  placeholder="Ej: COLUN, SOPROLE, COCA COLA..."
+                  autoFocus
+                />
+              </div>
+              <div className="status-toggle mt-3">
+                <div>
+                  <strong>Marca activa</strong>
+                  <small>Las marcas inactivas no pueden asociarse a nuevos productos.</small>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={form.activo}
+                    onChange={(event) => setField("activo", event.target.checked)}
+                  />
+                  <span />
+                </label>
+              </div>
+            </div>
+            <footer>
+              <button type="button" className="btn btn-light" onClick={() => setModalOpen(false)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" disabled={saving}>
+                {saving ? "Guardando..." : <><Save size={17} />{editingItem ? "Guardar cambios" : "Crear marca"}</>}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ProductManager({ brands = [], categories = [] }) {
+  const blankProduct = {
+    marca_id: "",
     codigointerno: "",
     codigo: "",
     nombre: "",
@@ -146,7 +410,7 @@ function ProductManager({ categories }) {
   };
   const [products, setProducts] = useState([]);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [stockThreshold, setStockThreshold] = useState("");
   const [page, setPage] = useState(1);
@@ -159,15 +423,14 @@ function ProductManager({ categories }) {
 
   const imageSource = (value) =>
     value ? `data:image/jpeg;base64,${value}` : null;
-  const categoryName = (id) =>
-    categories.find((category) => category.id === id)?.nombre ??
-    "Sin categoría";
+  const brandName = (id) =>
+    brands.find((brand) => brand.id === id)?.nombre ?? "Sin marca";
 
   async function loadProducts() {
     try {
       const { data } = await api.get("/admin/productos", {
         params: {
-          category_id: selectedCategory || undefined,
+          brand_id: selectedBrand || undefined,
           search: productSearch.trim() || undefined,
           stock_lt: stockThreshold === "" ? undefined : Number(stockThreshold),
           page,
@@ -186,26 +449,26 @@ function ProductManager({ categories }) {
   useEffect(() => {
     const timer = setTimeout(loadProducts, 200);
     return () => clearTimeout(timer);
-  }, [selectedCategory, productSearch, stockThreshold, page]);
+  }, [selectedBrand, productSearch, stockThreshold, page]);
 
   useEffect(() => {
     const table = document.querySelector(".product-table");
     if (!table) return undefined;
     const filters = document.createElement("div");
     filters.className = "product-filters mt-4";
-    const categorySelect = document.createElement("select");
-    categorySelect.className = "form-select";
-    categorySelect.setAttribute("aria-label", "Filtrar por categoría");
-    categorySelect.append(new Option("Todas las categorías", ""));
-    categories.forEach((category) =>
-      categorySelect.append(new Option(category.nombre, category.id)),
+    const brandSelect = document.createElement("select");
+    brandSelect.className = "form-select";
+    brandSelect.setAttribute("aria-label", "Filtrar por marca");
+    brandSelect.append(new Option("Todas las marcas", ""));
+    brands.forEach((brand) =>
+      brandSelect.append(new Option(brand.nombre, brand.id)),
     );
     const searchField = document.createElement("div");
     searchField.className = "product-search";
     const searchInput = document.createElement("input");
     searchInput.className = "form-control";
-    searchInput.placeholder = "Buscar por nombre";
-    searchInput.setAttribute("aria-label", "Buscar producto por nombre");
+    searchInput.placeholder = "Buscar por nombre o código";
+    searchInput.setAttribute("aria-label", "Buscar producto por nombre o código");
     searchField.append(searchInput);
     const stockField = document.createElement("div");
     stockField.className = "product-stock-filter";
@@ -222,24 +485,24 @@ function ProductManager({ categories }) {
       "Filtrar productos con stock menor a",
     );
     stockField.append(stockLabel, stockInput);
-    filters.append(categorySelect, searchField, stockField);
+    filters.append(brandSelect, searchField, stockField);
     table.before(filters);
     function filterProducts() {
-      setSelectedCategory(categorySelect.value);
+      setSelectedBrand(brandSelect.value);
       setProductSearch(searchInput.value);
       setStockThreshold(stockInput.value);
       setPage(1);
     }
-    categorySelect.addEventListener("change", filterProducts);
+    brandSelect.addEventListener("change", filterProducts);
     searchInput.addEventListener("input", filterProducts);
     stockInput.addEventListener("input", filterProducts);
     return () => {
-      categorySelect.removeEventListener("change", filterProducts);
+      brandSelect.removeEventListener("change", filterProducts);
       searchInput.removeEventListener("input", filterProducts);
       stockInput.removeEventListener("input", filterProducts);
       filters.remove();
     };
-  }, [categories, loading]);
+  }, [brands, loading]);
 
   useEffect(() => {
     document.querySelectorAll(".product-table .product-row").forEach((row) => {
@@ -293,6 +556,7 @@ function ProductManager({ categories }) {
       current
         ? {
             ...current,
+            marca_id: current.marca_id || current.marca?.id || "",
             codigointerno: current.codigointerno || current.codigo || "",
             codigo: current.codigointerno || current.codigo || "",
             precio: String(current.precio),
@@ -301,8 +565,8 @@ function ProductManager({ categories }) {
           }
         : {
             ...blankProduct,
-            categoria_id:
-              categories.find((category) => category.activo)?.id ?? "",
+            marca_id:
+              brands.find((brand) => brand.activo)?.id ?? (brands[0]?.id || ""),
           },
     );
     setError("");
@@ -340,8 +604,8 @@ function ProductManager({ categories }) {
       delete payload.codigointerno;
       delete payload.codigo;
     }
-    if (!payload.categoria_id) {
-      setError("Selecciona una categoría.");
+    if (!payload.marca_id) {
+      setError("Selecciona una marca.");
       return;
     }
     setSaving(true);
@@ -424,7 +688,7 @@ function ProductManager({ categories }) {
             <div className="product-table mt-4">
               <div className="product-table-head">
                 <span>Producto</span>
-                <span className="d-none d-md-block">Categoría</span>
+                <span className="d-none d-md-block">Marca</span>
                 <span>Precio</span>
                 <span>Stock</span>
                 <span>Tributación</span>
@@ -447,7 +711,7 @@ function ProductManager({ categories }) {
                     </div>
                   </div>
                   <span className="d-none d-md-block product-category">
-                    {categoryName(item.categoria_id)}
+                    {item.marca?.nombre || brandName(item.marca_id)}
                   </span>
                   <strong>{money.format(item.precio)}</strong>
                   <span>{Number(item.cantidad)}</span>
@@ -474,7 +738,7 @@ function ProductManager({ categories }) {
           )}
         </section>
       </div>
-      {(product || form.categoria_id) && (
+      {(product || form.marca_id) && (
         <div className="modal-backdrop-custom">
           <form className="category-modal product-modal" onSubmit={saveProduct}>
             <header>
@@ -498,28 +762,28 @@ function ProductManager({ categories }) {
                 <div className="product-form-wide">
                   <label
                     className="form-label"
-                    htmlFor="product-category-base64"
+                    htmlFor="product-brand-select"
                   >
-                    Categoría
+                    Marca
                   </label>
                   <select
-                    id="product-category-base64"
+                    id="product-brand-select"
                     className="form-select"
-                    value={form.categoria_id}
+                    value={form.marca_id}
                     onChange={(event) =>
-                      setField("categoria_id", event.target.value)
+                      setField("marca_id", event.target.value)
                     }
                     required
                   >
-                    <option value="">Selecciona una categoría</option>
-                    {categories
+                    <option value="">Selecciona una marca</option>
+                    {brands
                       .filter(
-                        (category) =>
-                          category.activo || category.id === form.categoria_id,
+                        (brand) =>
+                          brand.activo || brand.id === form.marca_id,
                       )
-                      .map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.nombre}
+                      .map((brand) => (
+                        <option key={brand.id} value={brand.id}>
+                          {brand.nombre} {brand.categoria?.nombre ? `(${brand.categoria.nombre})` : ""}
                         </option>
                       ))}
                   </select>
@@ -2554,6 +2818,16 @@ function AdminDashboard({ onLogout }) {
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState("summary");
   const [configurationOpen, setConfigurationOpen] = useState(false);
+  const [brands, setBrands] = useState([]);
+
+  async function loadBrands() {
+    try {
+      const { data } = await api.get("/marcas");
+      setBrands(data);
+    } catch {
+      // ignore
+    }
+  }
 
   async function loadCategories() {
     try {
@@ -2566,7 +2840,10 @@ function AdminDashboard({ onLogout }) {
     }
   }
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => {
+    loadCategories();
+    loadBrands();
+  }, []);
 
   async function createCategory(event) {
     event.preventDefault();
@@ -2621,13 +2898,14 @@ function AdminDashboard({ onLogout }) {
   const navigation = [
     [LayoutDashboard, "Dashboard", "summary", true],
     [FolderTree, "Categorías", "categories", true],
+    [Tag, "Marcas", "brands", true],
     [Package, "Productos", "products", true],
     [ClipboardList, "Pedidos", "orders", true],
     [ClipboardList, "Créditos", "credits", true],
   ];
 
   return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><BrandMark /><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || ["users", "customers", "percentages", "external-codes"].includes(section) ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button><button className={section === "percentages" ? "active" : ""} onClick={() => { setSection("percentages"); setMenuOpen(false); }}><Percent size={17} /><span>Porcentajes</span></button><button className={section === "external-codes" ? "active" : ""} onClick={() => { setSection("external-codes"); setMenuOpen(false); }}><Hash size={17} /><span>Código Externo</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} /><button className="icon-button admin-mobile-menu d-lg-none" type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button>
-    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : section === "percentages" ? <section className="admin-workspace"><PercentageManager /></section> : section === "external-codes" ? <section className="admin-workspace"><ExternalCodeManager /></section> : <>
+    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "brands" ? <section className="admin-workspace"><BrandManager categories={categories} brands={brands} onReload={loadBrands} /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} brands={brands} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : section === "percentages" ? <section className="admin-workspace"><PercentageManager /></section> : section === "external-codes" ? <section className="admin-workspace"><ExternalCodeManager /></section> : <>
     <section className="admin-workspace"><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Categorías</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de Categoría</span><button className="btn btn-primary" onClick={() => document.getElementById("category-name")?.focus()}><Plus size={18} />Nueva categoría</button></div></header>
       <div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">INVENTARIO</p><h2>Organiza tu Categoría</h2><p>Las categorías agrupan los productos visibles para tus clientes.</p></div><div className="summary-metric"><span>{categories.length}</span><small>Categorías registradas</small></div></section>
         <section className="content-panel"><div className="panel-heading"><div><h2>Listado de categorías</h2><p>Administra la clasificación de tu catálogo.</p></div><span className="panel-count">{categories.length} registros</span></div><form className="category-form" onSubmit={createCategory}><div><label htmlFor="category-name" className="visually-hidden">Nombre de categoría</label><input id="category-name" className="form-control" placeholder="Escribe una nueva categoría" value={name} onChange={(event) => setName(event.target.value)} maxLength="120" required /></div><button className="btn btn-primary"><Plus size={18} />Agregar</button></form>
@@ -2670,7 +2948,7 @@ function ShopLegacy({ customer }) {
   const total = cart.reduce((sum, item) => sum + Number(item.precio_cliente ?? item.precio) * item.quantity, 0);
   return <main className="customer-app"><header className="customer-topbar"><div className="container d-flex align-items-center justify-content-between"><div className="customer-brand"><span className="brand-mark">S</span><strong>Santa Mena</strong></div><button className="btn btn-light btn-sm" onClick={loadOrders}><ClipboardList size={17} />Mis pedidos</button></div></header><div className="container py-4 py-lg-5"><header className="customer-heading"><p className="eyebrow">PORTAL DE PEDIDOS</p><h1>Hola, {customer.nombre}</h1><p>Selecciona los productos que necesitas para tu próximo despacho.</p></header>
     {view === "orders" ? <section className="content-panel"><button className="btn btn-link px-0 mb-3" onClick={() => setView("shop")}>Volver al catálogo</button><h2>Pedidos pendientes</h2>{orders.length ? orders.map((order) => <article className="order-row" key={order.id}><strong>{order.estado}</strong><span>{money.format(order.total)}</span><span>{order.detalles.length} productos</span></article>) : <p className="text-secondary mb-0">No hay pedidos pendientes.</p>}</section> : <div className="row g-4"><section className="col-lg-8"><div className="search-field"><Search size={20} /><label htmlFor="search" className="visually-hidden">Buscar producto</label><input id="search" className="form-control form-control-lg" placeholder="Busca por nombre de producto" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-      {notice && <div className="alert alert-success mt-3">{notice}</div>}<div className="product-grid mt-4">{products.map((product) => <article className="product" key={product.id}><div className="product-image">{product.imagen_url ? <img src={product.imagen_url} alt="" /> : <Package size={30} />}</div><small>{product.codigo}</small><h2>{product.nombre}</h2><strong>{money.format(product.precio_cliente ?? product.precio)}</strong><button className="btn btn-outline-primary mt-3" onClick={() => add(product)}><Plus size={17} />Agregar</button></article>)}</div></section>
+      {notice && <div className="alert alert-success mt-3">{notice}</div>}<div className="product-grid mt-4">{products.map((product) => <article className="product" key={product.id}><div className="product-image">{product.imagen_url ? <img src={product.imagen_url} alt="" /> : <Package size={30} />}</div><small>{product.marca?.nombre ? `${product.marca.nombre} · ` : ""}#{product.codigointerno || product.codigo}</small><h2>{product.nombre}</h2><strong>{money.format(product.precio_cliente ?? product.precio)}</strong><button className="btn btn-outline-primary mt-3" onClick={() => add(product)}><Plus size={17} />Agregar</button></article>)}</div></section>
       <aside className="col-lg-4"><div className="cart"><div className="cart-title"><ShoppingBag size={20} /><h2>Tu carrito</h2></div>{cart.length === 0 ? <p className="text-secondary">Aún no agregas productos.</p> : <>{cart.map((item) => <div className="cart-line" key={item.id}><span>{item.nombre}</span><div><button onClick={() => setCart(cart.map((line) => line.id === item.id ? { ...line, quantity: Math.max(1, line.quantity - 1) } : line))}>-</button><span>{item.quantity}</span><button onClick={() => setCart(cart.map((line) => line.id === item.id ? { ...line, quantity: line.quantity + 1 } : line))}>+</button></div></div>)}<hr/><div className="d-flex justify-content-between"><strong>Total</strong><strong>{money.format(total)}</strong></div><button className="btn btn-primary w-100 mt-3" disabled>Selecciona dirección para finalizar</button></>}</div></aside></div>}</div></main>;
 }
 
@@ -3048,7 +3326,7 @@ function Shop({ customer, onLogout }) {
                           <Package size={30} />
                         )}
                       </div>
-                      <small>{product.codigo}</small>
+                      <small>{product.marca?.nombre ? `${product.marca.nombre} · ` : ""}#{product.codigointerno || product.codigo}</small>
                       <h2>{product.nombre}</h2>
                       <strong>
                         {money.format(product.precio_cliente ?? product.precio)}

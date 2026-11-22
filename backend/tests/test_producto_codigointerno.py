@@ -11,10 +11,10 @@ from app.schemas.dto import ProductInput, ProductOutput
 class TestProductoCodigoInterno(unittest.TestCase):
     def test_producto_model_codigointerno_and_codigo_property(self) -> None:
         uid = uuid.uuid4()
-        cat_id = uuid.uuid4()
+        marca_id = uuid.uuid4()
         prod = Producto(
             id=uid,
-            categoria_id=cat_id,
+            marca_id=marca_id,
             codigointerno="100",
             nombre="MANZANA",
             precio=Decimal("1500"),
@@ -29,10 +29,10 @@ class TestProductoCodigoInterno(unittest.TestCase):
         self.assertEqual(prod.codigo, "101")
 
     def test_product_input_optional_codigointerno_and_alias(self) -> None:
-        cat_id = uuid.uuid4()
+        marca_id = uuid.uuid4()
         # Without codigointerno (creación automática)
         payload = ProductInput(
-            categoria_id=cat_id,
+            marca_id=marca_id,
             nombre="PLÁTANO",
             precio=Decimal("1200"),
             cantidad=Decimal("5.0"),
@@ -42,7 +42,7 @@ class TestProductoCodigoInterno(unittest.TestCase):
         # With alias 'codigo'
         payload_with_alias = ProductInput.model_validate(
             {
-                "categoria_id": cat_id,
+                "marca_id": marca_id,
                 "codigo": "abc-100",
                 "nombre": "PLÁTANO",
                 "precio": Decimal("1200"),
@@ -52,11 +52,11 @@ class TestProductoCodigoInterno(unittest.TestCase):
         self.assertEqual(payload_with_alias.codigointerno, "ABC-100")
 
     def test_product_output_syncs_codigo(self) -> None:
-        cat_id = uuid.uuid4()
+        marca_id = uuid.uuid4()
         prod_id = uuid.uuid4()
         output = ProductOutput(
             id=prod_id,
-            categoria_id=cat_id,
+            marca_id=marca_id,
             codigointerno="105",
             nombre="NARANJA",
             precio=Decimal("990"),
