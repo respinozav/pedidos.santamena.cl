@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import AdminUser, DatabaseSession
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models.entities import Categoria, Cliente, Credito, Direccion, Estado, Producto, Rol, Usuario
+from app.models.entities import Categoria, Cliente, Credito, Direccion, Estado, Porcentaje, Producto, Rol, Usuario
 from app.repositories.base import Repository
 from app.schemas.dto import (
     AddressInput,
@@ -25,6 +25,8 @@ from app.schemas.dto import (
     OrderOutput,
     OrderStateOutput,
     OrderStatusUpdate,
+    PercentageInput,
+    PercentageOutput,
     ProductInput,
     ProductOutput,
     ProductPage,
@@ -56,7 +58,7 @@ def list_roles(database: DatabaseSession, _: AdminUser) -> list[Rol]:
 
 @router.get("/usuarios", response_model=list[UserOutput], tags=["Usuarios"])
 def list_users(database: DatabaseSession, _: AdminUser) -> list[Usuario]:
-    statement = select(Usuario).options(selectinload(Usuario.rol)).order_by(Usuario.nombre)
+    statement = select(Usuario).options(selectinload(Usuario.rol), selectinload(Usuario.porcentaje)).order_by(Usuario.nombre)
     return list(database.scalars(statement))
 
 
@@ -65,10 +67,14 @@ def create_user(payload: UserCreate, database: DatabaseSession, _: AdminUser) ->
     role = database.get(Rol, payload.rol_id)
     if not role or not role.activo:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Rol no disponible")
+    if payload.porcentaje_id:
+        pct = database.get(Porcentaje, payload.porcentaje_id)
+        if not pct or pct.eliminado_at:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Porcentaje no disponible")
     values = payload.model_dump(exclude={"password"})
     entity = Repository(Usuario, database).add(Usuario(**values, password_hash=hash_password(payload.password)))
     database.commit()
-    database.refresh(entity, attribute_names=["rol"])
+    database.refresh(entity, attribute_names=["rol", "porcentaje"])
     return entity
 
 
@@ -82,12 +88,16 @@ def update_user(user_id: UUID, payload: UserUpdate, database: DatabaseSession, c
     role = database.get(Rol, payload.rol_id)
     if not role or not role.activo:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Rol no disponible")
+    if payload.porcentaje_id:
+        pct = database.get(Porcentaje, payload.porcentaje_id)
+        if not pct or pct.eliminado_at:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Porcentaje no disponible")
     values = payload.model_dump(exclude={"password"})
     if payload.password:
         values["password_hash"] = hash_password(payload.password)
     Repository(Usuario, database).update(entity, values)
     database.commit()
-    database.refresh(entity, attribute_names=["rol"])
+    database.refresh(entity, attribute_names=["rol", "porcentaje"])
     return entity
 
 
@@ -200,15 +210,92 @@ def update_product(product_id: UUID, payload: ProductInput, database: DatabaseSe
     return entity
 
 
+@router.get("/porcentajes", response_model=list[PercentageOutput], tags=["Porcentajes"])
+def list_percentages(database: DatabaseSession, active_only: bool = False) -> list[Porcentaje]:
+    statement = select(Porcentaje).where(Porcentaje.eliminado_at.is_(None))
+    if active_only:
+        statement = statement.where(Porcentaje.activo.is_(True))
+    return list(database.scalars(statement.order_by(Porcentaje.valor)))
+
+
+@router.post("/porcentajes", response_model=PercentageOutput, status_code=status.HTTP_201_CREATED, tags=["Porcentajes"])
+def create_percentage(payload: PercentageInput, database: DatabaseSession, _: AdminUser) -> Porcentaje:
+    duplicate = database.scalar(
+        select(Porcentaje.id).where(
+            Porcentaje.valor == payload.valor,
+            Porcentaje.eliminado_at.is_(None),
+        )
+    )
+    if duplicate:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ya existe un porcentaje con este valor")
+    values = payload.model_dump()
+    if not values.get("nombre"):
+        norm_val = payload.valor.normalize() if payload.valor % 1 else int(payload.valor)
+        values["nombre"] = f"{norm_val}%"
+    entity = Repository(Porcentaje, database).add(Porcentaje(**values))
+    database.commit()
+    return entity
+
+
+@router.put("/porcentajes/{percentage_id}", response_model=PercentageOutput, tags=["Porcentajes"])
+def update_percentage(
+    percentage_id: UUID,
+    payload: PercentageInput,
+    database: DatabaseSession,
+    _: AdminUser,
+) -> Porcentaje:
+    entity = Repository(Porcentaje, database).get(percentage_id)
+    if not entity or entity.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Porcentaje no encontrado")
+    duplicate = database.scalar(
+        select(Porcentaje.id).where(
+            Porcentaje.valor == payload.valor,
+            Porcentaje.id != percentage_id,
+            Porcentaje.eliminado_at.is_(None),
+        )
+    )
+    if duplicate:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ya existe un porcentaje con este valor")
+    values = payload.model_dump()
+    if not values.get("nombre"):
+        norm_val = payload.valor.normalize() if payload.valor % 1 else int(payload.valor)
+        values["nombre"] = f"{norm_val}%"
+    Repository(Porcentaje, database).update(entity, values)
+    database.commit()
+    return entity
+
+
+@router.delete("/porcentajes/{percentage_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Porcentajes"])
+def delete_percentage(percentage_id: UUID, database: DatabaseSession, _: AdminUser) -> None:
+    entity = Repository(Porcentaje, database).get(percentage_id)
+    if not entity or entity.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Porcentaje no encontrado")
+    Repository(Porcentaje, database).soft_delete(entity)
+    database.commit()
+
+
 @router.get("/clientes", response_model=list[CustomerOutput], tags=["Clientes"])
 def list_customers(database: DatabaseSession, _: AdminUser) -> list[Cliente]:
-    return list(database.scalars(select(Cliente).options(selectinload(Cliente.direcciones)).where(Cliente.eliminado_at.is_(None))))
+    return list(
+        database.scalars(
+            select(Cliente)
+            .options(selectinload(Cliente.direcciones), selectinload(Cliente.porcentaje_rel))
+            .where(Cliente.eliminado_at.is_(None))
+            .order_by(Cliente.nombre)
+        )
+    )
 
 
 @router.post("/clientes", response_model=CustomerOutput, status_code=status.HTTP_201_CREATED, tags=["Clientes"])
 def create_customer(payload: CustomerInput, database: DatabaseSession, _: AdminUser) -> Cliente:
-    entity = Repository(Cliente, database).add(Cliente(**payload.model_dump()))
+    values = payload.model_dump()
+    if payload.porcentaje_id:
+        pct = database.get(Porcentaje, payload.porcentaje_id)
+        if pct and not pct.eliminado_at:
+            values["porcentaje"] = pct.valor
+    entity = Repository(Cliente, database).add(Cliente(**values))
     database.commit()
+    database.refresh(entity, attribute_names=["direcciones", "porcentaje_rel"])
     return entity
 
 
@@ -217,8 +304,14 @@ def update_customer(customer_id: UUID, payload: CustomerInput, database: Databas
     entity = Repository(Cliente, database).get(customer_id)
     if not entity or entity.eliminado_at:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
-    Repository(Cliente, database).update(entity, payload.model_dump())
+    values = payload.model_dump()
+    if payload.porcentaje_id:
+        pct = database.get(Porcentaje, payload.porcentaje_id)
+        if pct and not pct.eliminado_at:
+            values["porcentaje"] = pct.valor
+    Repository(Cliente, database).update(entity, values)
     database.commit()
+    database.refresh(entity, attribute_names=["direcciones", "porcentaje_rel"])
     return entity
 
 

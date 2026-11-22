@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
+import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Percent, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 import { api, setAdminToken } from "./services/api";
@@ -1070,86 +1070,13 @@ function UserManager() {
   );
 }
 
-function CustomerManagerLegacy() {
-  const blankCustomer = { rut: "", nombre: "", celular: "", correo: "", porcentaje: "0", con_decimal: false, activo: true };
-  const blankAddress = { direccion: "", comuna: "", principal: false, activo: true };
-  const [customers, setCustomers] = useState([]);
-  const [customer, setCustomer] = useState(null);
-  const [customerFormOpen, setCustomerFormOpen] = useState(false);
-  const [form, setForm] = useState(blankCustomer);
-  const [addressForm, setAddressForm] = useState(blankAddress);
-  const [addressCustomer, setAddressCustomer] = useState(null);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  async function loadCustomers() {
-    try {
-      const { data } = await api.get("/clientes");
-      setCustomers(data);
-    } catch {
-      setError("No fue posible cargar los clientes.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { loadCustomers(); }, []);
-  useEffect(() => {
-    const table = document.querySelector(".customer-row")?.parentElement;
-    function handleCustomerClick(event) {
-      if (event.target.closest("button")) return;
-      const row = event.target.closest(".customer-row");
-      if (!row) return;
-      const rowIndex = [...table.querySelectorAll(".customer-row")].indexOf(row);
-      if (customers[rowIndex]) openAddresses(customers[rowIndex]);
-    }
-    table?.addEventListener("click", handleCustomerClick);
-    return () => table?.removeEventListener("click", handleCustomerClick);
-  }, [customers]);
-  const setField = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-
-  function openCustomer(current = null) {
-    setCustomer(current);
-    setCustomerFormOpen(true);
-    setForm(current ? { rut: current.rut ?? "", nombre: current.nombre ?? "", celular: current.celular ?? "", correo: current.correo ?? "", porcentaje: String(current.porcentaje), con_decimal: Boolean(current.con_decimal), activo: current.activo } : blankCustomer);
-    setError("");
-  }
-
-  async function saveCustomer(event) {
-    event.preventDefault();
-    if (![form.rut, form.nombre, form.celular].some((value) => value.trim())) return setError("Indica al menos RUT, nombre o celular.");
-    setSaving(true);
-    const payload = { ...form, rut: form.rut.trim() || null, nombre: form.nombre.trim() || null, celular: form.celular.trim() || null, correo: form.correo.trim() || null, porcentaje: Number(form.porcentaje), con_decimal: Boolean(form.con_decimal) };
-    try {
-      if (customer) { await api.put(`/clientes/${customer.id}`, payload); setNotice("Cliente actualizado correctamente."); } else { await api.post("/clientes", payload); setNotice("Cliente agregado correctamente."); }
-      setCustomer(null); setCustomerFormOpen(false); setForm(blankCustomer); setError(""); await loadCustomers();
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail ?? "No fue posible guardar el cliente. Revisa que RUT y celular no estén repetidos.");
-    } finally { setSaving(false); }
-  }
-
-  function openAddresses(current) { setAddressCustomer(current); setAddressForm(blankAddress); setError(""); }
-  async function saveAddress(event) {
-    event.preventDefault();
-    if (!addressCustomer) return;
-    setSaving(true);
-    try {
-      await api.post(`/clientes/${addressCustomer.id}/direcciones`, addressForm);
-      setAddressForm(blankAddress); setNotice("Dirección agregada correctamente.");
-      const { data } = await api.get("/clientes");
-      setCustomers(data); setAddressCustomer(data.find((item) => item.id === addressCustomer.id) ?? null);
-    } catch (requestError) { setError(requestError.response?.data?.detail ?? "No fue posible guardar la dirección."); } finally { setSaving(false); }
-  }
-
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CONFIGURACION</p><h1>Clientes</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de clientes</span><button className="btn btn-primary" onClick={() => openCustomer()}><Plus size={18} />Nuevo cliente</button></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">CLIENTES</p><h2>Administra tus clientes</h2><p>Gestiona sus datos, descuento y direcciones de despacho.</p></div><div className="summary-metric"><span>{customers.length}</span><small>Clientes registrados</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de clientes</h2><p>Clientes activos e inactivos registrados en la plataforma.</p></div><span className="panel-count">{customers.length} registros</span></div>{notice && <div className="alert alert-success alert-dismissible fade show mt-3 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando clientes...</p> : <div className="user-table mt-4"><div className="user-table-head customer-table-head"><span>RUT</span><span>Nombre</span><span>Celular</span><span className="customer-email">Correo</span><span>%</span><span>Decimal</span><span>Activo</span><span>Acciones</span></div>{customers.length ? customers.map((item) => <div className="user-row customer-row" key={item.id}><span>{item.rut || "-"}</span><strong>{item.nombre || "-"}</strong><span>{item.celular || "-"}</span><span className="customer-email">{item.correo || "-"}</span><span>{Number(item.porcentaje)}%</span><span>{item.con_decimal ? "Sí" : "No"}</span><span className={item.activo ? "status-active" : "status-inactive"}>{item.activo ? "Activo" : "Inactivo"}</span><button className="icon-button category-edit" onClick={() => openCustomer(item)} aria-label="Editar cliente"><Pencil size={16} /></button></div>) : <p className="text-secondary p-4 mb-0">Aún no hay clientes registrados.</p>}</div>}</section></div>{customerFormOpen && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveCustomer}><header><div><p className="eyebrow">CONFIGURACION</p><h2>{customer ? "Editar cliente" : "Nuevo cliente"}</h2></div><button type="button" className="icon-button" onClick={() => { setCustomer(null); setCustomerFormOpen(false); setForm(blankCustomer); }} aria-label="Cerrar formulario"><X size={19} /></button></header><div className="modal-body-custom"><p className="form-text mt-0">Completa al menos uno: RUT, nombre o celular.</p><div className="product-form-grid"><div><label className="form-label" htmlFor="customer-rut">RUT</label><input id="customer-rut" className="form-control" value={form.rut} onChange={(event) => setField("rut", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-name">Nombre</label><input id="customer-name" className="form-control" value={form.nombre} onChange={(event) => setField("nombre", event.target.value)} autoFocus /></div><div><label className="form-label" htmlFor="customer-phone">Celular</label><input id="customer-phone" className="form-control" value={form.celular} onChange={(event) => setField("celular", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-email">Correo</label><input id="customer-email" className="form-control" type="email" value={form.correo} onChange={(event) => setField("correo", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-percentage">Porcentaje</label><input id="customer-percentage" className="form-control" type="number" min="0" max="100" step="0.01" value={form.porcentaje} onChange={(event) => setField("porcentaje", event.target.value)} required /></div></div><div className="status-toggle"><div><strong>Permitir decimales (½ unidad)</strong><small>Habilita el botón de media unidad en el portal de pedidos.</small></div><label className="switch"><input type="checkbox" checked={form.con_decimal} onChange={(event) => setField("con_decimal", event.target.checked)} /><span /></label></div><div className="status-toggle"><div><strong>Cliente activo</strong><small>Los clientes inactivos no pueden acceder al portal.</small></div><label className="switch"><input type="checkbox" checked={form.activo} onChange={(event) => setField("activo", event.target.checked)} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => { setCustomer(null); setCustomerFormOpen(false); setForm(blankCustomer); }}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar cliente</>}</button></footer></form></div>}{addressCustomer && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveAddress}><header><div><p className="eyebrow">DIRECCIONES</p><h2>{addressCustomer.nombre || addressCustomer.rut || "Cliente"}</h2></div><button type="button" className="icon-button" onClick={() => setAddressCustomer(null)} aria-label="Cerrar direcciones"><X size={19} /></button></header><div className="modal-body-custom"><div className="address-list">{addressCustomer.direcciones?.length ? addressCustomer.direcciones.map((address) => <div className="address-item" key={address.id}><div><strong>{address.direccion}</strong><small>{address.comuna || "Sin comuna"}</small></div>{address.principal && <span className="status-active">Principal</span>}</div>) : <p className="text-secondary mb-3">Aún no hay direcciones. La primera se asignará como principal.</p>}</div><div className="product-form-grid"><div className="product-form-wide"><label className="form-label" htmlFor="address-value">Dirección</label><input id="address-value" className="form-control" value={addressForm.direccion} onChange={(event) => setAddressForm((current) => ({ ...current, direccion: event.target.value }))} required /></div><div><label className="form-label" htmlFor="address-district">Comuna</label><input id="address-district" className="form-control" value={addressForm.comuna} onChange={(event) => setAddressForm((current) => ({ ...current, comuna: event.target.value }))} /></div></div><div className="status-toggle"><div><strong>Dirección principal</strong><small>Se usará por defecto para los despachos.</small></div><label className="switch"><input type="checkbox" checked={addressForm.principal} onChange={(event) => setAddressForm((current) => ({ ...current, principal: event.target.checked }))} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => setAddressCustomer(null)}>Cerrar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Agregar dirección</>}</button></footer></form></div>}</>;
-}
 
 function CustomerManager() {
-  const blankCustomer = { rut: "", nombre: "", celular: "", correo: "", porcentaje: "0", con_decimal: false, activo: true };
+  const blankCustomer = { rut: "", nombre: "", celular: "", correo: "", porcentaje: "0", porcentaje_id: "", con_decimal: false, activo: true };
   const blankAddress = { direccion: "", comuna: "", principal: false, activo: true };
   const [customers, setCustomers] = useState([]);
+  const [percentages, setPercentages] = useState([]);
   const [customerFormOpen, setCustomerFormOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [addressCustomer, setAddressCustomer] = useState(null);
@@ -1163,11 +1090,15 @@ function CustomerManager() {
 
   async function loadCustomers() {
     try {
-      const { data } = await api.get("/clientes");
-      setCustomers(data);
-      return data;
+      const [customersRes, percentagesRes] = await Promise.all([
+        api.get("/clientes"),
+        api.get("/porcentajes"),
+      ]);
+      setCustomers(customersRes.data);
+      setPercentages(percentagesRes.data);
+      return customersRes.data;
     } catch {
-      setError("No fue posible cargar los clientes.");
+      setError("No fue posible cargar los datos.");
       return [];
     } finally {
       setLoading(false);
@@ -1182,7 +1113,29 @@ function CustomerManager() {
 
   function openCustomer(customer = null) {
     setSelectedCustomer(customer);
-    setForm(customer ? { rut: customer.rut ?? "", nombre: customer.nombre ?? "", celular: customer.celular ?? "", correo: customer.correo ?? "", porcentaje: String(customer.porcentaje), con_decimal: Boolean(customer.con_decimal), activo: customer.activo } : blankCustomer);
+    let initialPorcentajeId = "";
+    if (customer) {
+      if (customer.porcentaje_id) {
+        initialPorcentajeId = customer.porcentaje_id;
+      } else {
+        const match = percentages.find((p) => Number(p.valor) === Number(customer.porcentaje));
+        if (match) initialPorcentajeId = match.id;
+      }
+    }
+    setForm(
+      customer
+        ? {
+            rut: customer.rut ?? "",
+            nombre: customer.nombre ?? "",
+            celular: customer.celular ?? "",
+            correo: customer.correo ?? "",
+            porcentaje: String(customer.porcentaje),
+            porcentaje_id: initialPorcentajeId,
+            con_decimal: Boolean(customer.con_decimal),
+            activo: customer.activo,
+          }
+        : blankCustomer
+    );
     setError("");
     setCustomerFormOpen(true);
   }
@@ -1194,7 +1147,16 @@ function CustomerManager() {
       return;
     }
     setSaving(true);
-    const payload = { ...form, rut: form.rut.trim() || null, nombre: form.nombre.trim() || null, celular: form.celular.trim() || null, correo: form.correo.trim() || null, porcentaje: Number(form.porcentaje), con_decimal: Boolean(form.con_decimal) };
+    const payload = {
+      ...form,
+      rut: form.rut.trim() || null,
+      nombre: form.nombre.trim() || null,
+      celular: form.celular.trim() || null,
+      correo: form.correo.trim() || null,
+      porcentaje: Number(form.porcentaje),
+      porcentaje_id: form.porcentaje_id || null,
+      con_decimal: Boolean(form.con_decimal),
+    };
     try {
       if (selectedCustomer) await api.put(`/clientes/${selectedCustomer.id}`, payload);
       else await api.post("/clientes", payload);
@@ -1253,7 +1215,276 @@ function CustomerManager() {
     }
   }
 
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CONFIGURACION</p><h1>Clientes</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de clientes</span><button className="btn btn-primary" onClick={() => openCustomer()}><Plus size={18} />Nuevo cliente</button></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">CLIENTES</p><h2>Administra tus clientes</h2><p>Gestiona sus datos, descuento y direcciones de despacho.</p></div><div className="summary-metric"><span>{customers.length}</span><small>Clientes registrados</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de clientes</h2><p>Clientes activos e inactivos registrados en la plataforma.</p></div><span className="panel-count">{customers.length} registros</span></div>{notice && <div className="alert alert-success alert-dismissible fade show mt-3 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && !customerFormOpen && !addressCustomer && <div className="alert alert-danger mt-3">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando clientes...</p> : <div className="customer-table mt-4"><div className="customer-table-head"><span>RUT</span><span>Nombre</span><span>Celular</span><span className="customer-email">Correo</span><span>%</span><span>Decimal</span><span>Activo</span><span>Acciones</span></div>{customers.length ? customers.map((customer) => <div className="customer-row" key={customer.id}><span>{customer.rut || "-"}</span><strong>{customer.nombre || "-"}</strong><span>{customer.celular || "-"}</span><span className="customer-email">{customer.correo || "-"}</span><span>{Number(customer.porcentaje)}%</span><span>{customer.con_decimal ? "Sí" : "No"}</span><span className={customer.activo ? "status-active" : "status-inactive"}>{customer.activo ? "Activo" : "Inactivo"}</span><div className="customer-actions"><button className="icon-button category-edit" type="button" onClick={() => openAddresses(customer)} aria-label="Gestionar direcciones"><MapPin size={16} /></button><button className="icon-button category-edit" type="button" onClick={() => openCustomer(customer)} aria-label="Editar cliente"><Pencil size={16} /></button></div></div>) : <p className="text-secondary p-4 mb-0">Aún no hay clientes registrados.</p>}</div>}</section></div>{customerFormOpen && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveCustomer}><header><div><p className="eyebrow">CONFIGURACION</p><h2>{selectedCustomer ? "Editar cliente" : "Nuevo cliente"}</h2></div><button type="button" className="icon-button" onClick={() => { setCustomerFormOpen(false); setSelectedCustomer(null); setForm(blankCustomer); }} aria-label="Cerrar formulario"><X size={19} /></button></header><div className="modal-body-custom">{error && <div className="alert alert-danger mb-3">{error}</div>}<p className="form-text mt-0">Completa al menos uno: RUT, nombre o celular.</p><div className="product-form-grid"><div><label className="form-label" htmlFor="customer-rut-new">RUT</label><input id="customer-rut-new" className="form-control" value={form.rut} onChange={(event) => setField("rut", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-name-new">Nombre</label><input id="customer-name-new" className="form-control" value={form.nombre} onChange={(event) => setField("nombre", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-phone-new">Celular</label><input id="customer-phone-new" className="form-control" value={form.celular} onChange={(event) => setField("celular", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-email-new">Correo</label><input id="customer-email-new" className="form-control" type="email" value={form.correo} onChange={(event) => setField("correo", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-percentage-new">Porcentaje</label><input id="customer-percentage-new" className="form-control" type="number" min="0" max="100" step="0.01" value={form.porcentaje} onChange={(event) => setField("porcentaje", event.target.value)} required /></div></div><div className="status-toggle"><div><strong>Permitir decimales (½ unidad)</strong><small>Habilita el botón de media unidad en el portal de pedidos.</small></div><label className="switch"><input type="checkbox" checked={form.con_decimal} onChange={(event) => setField("con_decimal", event.target.checked)} /><span /></label></div><div className="status-toggle"><div><strong>Cliente activo</strong><small>Los clientes inactivos no pueden acceder al portal.</small></div><label className="switch"><input type="checkbox" checked={form.activo} onChange={(event) => setField("activo", event.target.checked)} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => { setCustomerFormOpen(false); setSelectedCustomer(null); setForm(blankCustomer); }}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar cliente</>}</button></footer></form></div>}{addressCustomer && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveAddress}><header><div><p className="eyebrow">DIRECCIONES</p><h2>{addressCustomer.nombre || addressCustomer.rut || "Cliente"}</h2></div><button type="button" className="icon-button" onClick={() => setAddressCustomer(null)} aria-label="Cerrar direcciones"><X size={19} /></button></header><div className="modal-body-custom">{error && <div className="alert alert-danger mb-3">{error}</div>}<div className="address-table"><div className="address-table-head"><span>Dirección</span><span>Comuna</span><span>Principal</span><span>Activo</span></div>{addressCustomer.direcciones?.map((address) => <div className="address-row" key={address.id}><span>{address.direccion}</span><span>{address.comuna || "-"}</span><label className="switch"><input type="checkbox" checked={address.principal} disabled={saving} onChange={(event) => updateAddress(address, { principal: event.target.checked })} /><span /></label><label className="switch"><input type="checkbox" checked={address.activo} disabled={saving || address.principal} onChange={(event) => updateAddress(address, { activo: event.target.checked })} /><span /></label></div>)}{!addressCustomer.direcciones?.length && <p className="text-secondary py-3 mb-0">Aún no hay direcciones.</p>}</div><div className="address-form"><div><label className="form-label" htmlFor="new-address">Dirección</label><input id="new-address" className="form-control" value={addressForm.direccion} onChange={(event) => setAddressForm((current) => ({ ...current, direccion: event.target.value }))} required /></div><div><label className="form-label" htmlFor="new-district">Comuna</label><input id="new-district" className="form-control" value={addressForm.comuna} onChange={(event) => setAddressForm((current) => ({ ...current, comuna: event.target.value }))} /></div><label className="switch address-principal"><input type="checkbox" checked={addressForm.principal} onChange={(event) => setAddressForm((current) => ({ ...current, principal: event.target.checked }))} /><span /></label><label className="switch address-active"><input type="checkbox" checked={addressForm.activo} onChange={(event) => setAddressForm((current) => ({ ...current, activo: event.target.checked }))} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => setAddressCustomer(null)}>Cerrar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Plus size={17} />Agregar dirección</>}</button></footer></form></div>}</>;
+  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CONFIGURACION</p><h1>Clientes</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de clientes</span><button className="btn btn-primary" onClick={() => openCustomer()}><Plus size={18} />Nuevo cliente</button></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">CLIENTES</p><h2>Administra tus clientes</h2><p>Gestiona sus datos, descuento y direcciones de despacho.</p></div><div className="summary-metric"><span>{customers.length}</span><small>Clientes registrados</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de clientes</h2><p>Clientes activos e inactivos registrados en la plataforma.</p></div><span className="panel-count">{customers.length} registros</span></div>{notice && <div className="alert alert-success alert-dismissible fade show mt-3 category-notice"><CheckCircle2 size={18} />{notice}<button className="btn-close" type="button" onClick={() => setNotice("")} /></div>}{error && !customerFormOpen && !addressCustomer && <div className="alert alert-danger mt-3">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando clientes...</p> : <div className="customer-table mt-4"><div className="customer-table-head"><span>RUT</span><span>Nombre</span><span>Celular</span><span className="customer-email">Correo</span><span>%</span><span>Decimal</span><span>Activo</span><span>Acciones</span></div>{customers.length ? customers.map((customer) => <div className="customer-row" key={customer.id}><span>{customer.rut || "-"}</span><strong>{customer.nombre || "-"}</strong><span>{customer.celular || "-"}</span><span className="customer-email">{customer.correo || "-"}</span><span>{customer.porcentaje_rel?.nombre || `${Number(customer.porcentaje)}%`}</span><span>{customer.con_decimal ? "Sí" : "No"}</span><span className={customer.activo ? "status-active" : "status-inactive"}>{customer.activo ? "Activo" : "Inactivo"}</span><div className="customer-actions"><button className="icon-button category-edit" type="button" onClick={() => openAddresses(customer)} aria-label="Gestionar direcciones"><MapPin size={16} /></button><button className="icon-button category-edit" type="button" onClick={() => openCustomer(customer)} aria-label="Editar cliente"><Pencil size={16} /></button></div></div>) : <p className="text-secondary p-4 mb-0">Aún no hay clientes registrados.</p>}</div>}</section></div>{customerFormOpen && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveCustomer}><header><div><p className="eyebrow">CONFIGURACION</p><h2>{selectedCustomer ? "Editar cliente" : "Nuevo cliente"}</h2></div><button type="button" className="icon-button" onClick={() => { setCustomerFormOpen(false); setSelectedCustomer(null); setForm(blankCustomer); }} aria-label="Cerrar formulario"><X size={19} /></button></header><div className="modal-body-custom">{error && <div className="alert alert-danger mb-3">{error}</div>}<p className="form-text mt-0">Completa al menos uno: RUT, nombre o celular.</p><div className="product-form-grid"><div><label className="form-label" htmlFor="customer-rut-new">RUT</label><input id="customer-rut-new" className="form-control" value={form.rut} onChange={(event) => setField("rut", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-name-new">Nombre</label><input id="customer-name-new" className="form-control" value={form.nombre} onChange={(event) => setField("nombre", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-phone-new">Celular</label><input id="customer-phone-new" className="form-control" value={form.celular} onChange={(event) => setField("celular", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-email-new">Correo</label><input id="customer-email-new" className="form-control" type="email" value={form.correo} onChange={(event) => setField("correo", event.target.value)} /></div><div><label className="form-label" htmlFor="customer-percentage-new">Porcentaje</label><select id="customer-percentage-new" className="form-select" value={form.porcentaje_id || ""} onChange={(event) => { const selectedId = event.target.value; const pct = percentages.find((p) => p.id === selectedId); setField("porcentaje_id", selectedId); setField("porcentaje", pct ? String(pct.valor) : "0"); }} required><option value="">Selecciona un porcentaje</option>{percentages.filter((p) => p.activo || p.id === form.porcentaje_id).map((p) => <option key={p.id} value={p.id}>{p.nombre || `${Number(p.valor)}%`}</option>)}</select></div></div><div className="status-toggle"><div><strong>Permitir decimales (½ unidad)</strong><small>Habilita el botón de media unidad en el portal de pedidos.</small></div><label className="switch"><input type="checkbox" checked={form.con_decimal} onChange={(event) => setField("con_decimal", event.target.checked)} /><span /></label></div><div className="status-toggle"><div><strong>Cliente activo</strong><small>Los clientes inactivos no pueden acceder al portal.</small></div><label className="switch"><input type="checkbox" checked={form.activo} onChange={(event) => setField("activo", event.target.checked)} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => { setCustomerFormOpen(false); setSelectedCustomer(null); setForm(blankCustomer); }}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar cliente</>}</button></footer></form></div>}{addressCustomer && <div className="modal-backdrop-custom"><form className="category-modal product-modal" onSubmit={saveAddress}><header><div><p className="eyebrow">DIRECCIONES</p><h2>{addressCustomer.nombre || addressCustomer.rut || "Cliente"}</h2></div><button type="button" className="icon-button" onClick={() => setAddressCustomer(null)} aria-label="Cerrar direcciones"><X size={19} /></button></header><div className="modal-body-custom">{error && <div className="alert alert-danger mb-3">{error}</div>}<div className="address-table"><div className="address-table-head"><span>Dirección</span><span>Comuna</span><span>Principal</span><span>Activo</span></div>{addressCustomer.direcciones?.map((address) => <div className="address-row" key={address.id}><span>{address.direccion}</span><span>{address.comuna || "-"}</span><label className="switch"><input type="checkbox" checked={address.principal} disabled={saving} onChange={(event) => updateAddress(address, { principal: event.target.checked })} /><span /></label><label className="switch"><input type="checkbox" checked={address.activo} disabled={saving || address.principal} onChange={(event) => updateAddress(address, { activo: event.target.checked })} /><span /></label></div>)}{!addressCustomer.direcciones?.length && <p className="text-secondary py-3 mb-0">Aún no hay direcciones.</p>}</div><div className="address-form"><div><label className="form-label" htmlFor="new-address">Dirección</label><input id="new-address" className="form-control" value={addressForm.direccion} onChange={(event) => setAddressForm((current) => ({ ...current, direccion: event.target.value }))} required /></div><div><label className="form-label" htmlFor="new-district">Comuna</label><input id="new-district" className="form-control" value={addressForm.comuna} onChange={(event) => setAddressForm((current) => ({ ...current, comuna: event.target.value }))} /></div><label className="switch address-principal"><input type="checkbox" checked={addressForm.principal} onChange={(event) => setAddressForm((current) => ({ ...current, principal: event.target.checked }))} /><span /></label><label className="switch address-active"><input type="checkbox" checked={addressForm.activo} onChange={(event) => setAddressForm((current) => ({ ...current, activo: event.target.checked }))} /><span /></label></div></div><footer><button className="btn btn-light" type="button" onClick={() => setAddressCustomer(null)}>Cerrar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Plus size={17} />Agregar dirección</>}</button></footer></form></div>}</>;
+}
+
+function PercentageManager() {
+  const blankPercentage = { valor: "", nombre: "", activo: true };
+  const [percentages, setPercentages] = useState([]);
+  const [percentageFormOpen, setPercentageFormOpen] = useState(false);
+  const [selectedPercentage, setSelectedPercentage] = useState(null);
+  const [form, setForm] = useState(blankPercentage);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function loadPercentages() {
+    try {
+      const { data } = await api.get("/porcentajes");
+      setPercentages(data);
+      return data;
+    } catch {
+      setError("No fue posible cargar los porcentajes.");
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadPercentages(); }, []);
+
+  function setField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function openPercentage(percentage = null) {
+    setSelectedPercentage(percentage);
+    setForm(
+      percentage
+        ? {
+            valor: String(percentage.valor),
+            nombre: percentage.nombre ?? "",
+            activo: percentage.activo,
+          }
+        : blankPercentage
+    );
+    setError("");
+    setPercentageFormOpen(true);
+  }
+
+  async function savePercentage(event) {
+    event.preventDefault();
+    if (form.valor === "" || Number.isNaN(Number(form.valor))) {
+      setError("Indica un valor numérico para el porcentaje.");
+      return;
+    }
+    const numVal = Number(form.valor);
+    if (numVal < 0 || numVal > 100) {
+      setError("El porcentaje debe estar entre 0 y 100.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      valor: numVal,
+      nombre: form.nombre.trim() || `${numVal}%`,
+      activo: Boolean(form.activo),
+    };
+    try {
+      if (selectedPercentage) {
+        await api.put(`/porcentajes/${selectedPercentage.id}`, payload);
+      } else {
+        await api.post("/porcentajes", payload);
+      }
+      setNotice(selectedPercentage ? "Porcentaje actualizado correctamente." : "Porcentaje agregado correctamente.");
+      setPercentageFormOpen(false);
+      setSelectedPercentage(null);
+      setForm(blankPercentage);
+      setError("");
+      await loadPercentages();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible guardar el porcentaje.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(percentage) {
+    setSaving(true);
+    try {
+      await api.put(`/porcentajes/${percentage.id}`, {
+        valor: percentage.valor,
+        nombre: percentage.nombre,
+        activo: !percentage.activo,
+      });
+      setNotice(`Porcentaje ${!percentage.activo ? "activado" : "deshabilitado"} correctamente.`);
+      await loadPercentages();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible cambiar el estado del porcentaje.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <header className="admin-topbar">
+        <div className="topbar-title">
+          <p className="eyebrow mb-1">CONFIGURACION</p>
+          <h1>Porcentajes</h1>
+        </div>
+        <div className="topbar-actions">
+          <span className="topbar-date d-none d-sm-inline">Gestión de porcentajes</span>
+          <button className="btn btn-primary" onClick={() => openPercentage()}>
+            <Plus size={18} />
+            Nuevo porcentaje
+          </button>
+        </div>
+      </header>
+      <div className="admin-content">
+        <section className="admin-summary">
+          <div>
+            <p className="eyebrow">DESCUENTOS / MARGEN</p>
+            <h2>Administra tus porcentajes</h2>
+            <p>Configura los porcentajes disponibles para asignar a los clientes.</p>
+          </div>
+          <div className="summary-metric">
+            <span>{percentages.length}</span>
+            <small>Porcentajes registrados</small>
+          </div>
+        </section>
+        <section className="content-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Listado de porcentajes</h2>
+              <p>Porcentajes activos y deshabilitados para selección en clientes.</p>
+            </div>
+            <span className="panel-count">{percentages.length} registros</span>
+          </div>
+          {notice && (
+            <div className="alert alert-success alert-dismissible fade show mt-3 category-notice">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button className="btn-close" type="button" onClick={() => setNotice("")} />
+            </div>
+          )}
+          {error && !percentageFormOpen && <div className="alert alert-danger mt-3">{error}</div>}
+          {loading ? (
+            <p className="mt-4 text-secondary">Cargando porcentajes...</p>
+          ) : (
+            <div className="percentage-table mt-4">
+              <div className="percentage-table-head">
+                <span>Valor</span>
+                <span>Nombre / Etiqueta</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
+              {percentages.length ? (
+                percentages.map((item) => (
+                  <div className="percentage-row" key={item.id}>
+                    <strong>{Number(item.valor)}%</strong>
+                    <span>{item.nombre || `${Number(item.valor)}%`}</span>
+                    <label className="switch" title={item.activo ? "Deshabilitar" : "Habilitar"}>
+                      <input
+                        type="checkbox"
+                        checked={item.activo}
+                        disabled={saving}
+                        onChange={() => toggleActive(item)}
+                      />
+                      <span />
+                    </label>
+                    <button
+                      className="icon-button category-edit"
+                      onClick={() => openPercentage(item)}
+                      aria-label={`Editar ${item.nombre || item.valor}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-secondary p-4 mb-0">Aún no hay porcentajes registrados.</p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+      {percentageFormOpen && (
+        <div className="modal-backdrop-custom">
+          <form className="category-modal" onSubmit={savePercentage}>
+            <header>
+              <div>
+                <p className="eyebrow">CONFIGURACION</p>
+                <h2>{selectedPercentage ? "Editar porcentaje" : "Nuevo porcentaje"}</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => {
+                  setPercentageFormOpen(false);
+                  setSelectedPercentage(null);
+                  setForm(blankPercentage);
+                }}
+                aria-label="Cerrar formulario"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              {error && <div className="alert alert-danger mb-3">{error}</div>}
+              <div className="product-form-grid">
+                <div>
+                  <label className="form-label" htmlFor="percentage-valor">Valor (%)</label>
+                  <input
+                    id="percentage-valor"
+                    className="form-control"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={form.valor}
+                    onChange={(event) => setField("valor", event.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="percentage-nombre">Nombre / Etiqueta (opcional)</label>
+                  <input
+                    id="percentage-nombre"
+                    className="form-control"
+                    placeholder="Ej: 2% o Descuento Especial"
+                    value={form.nombre}
+                    onChange={(event) => setField("nombre", event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="status-toggle mt-3">
+                <div>
+                  <strong>Porcentaje activo</strong>
+                  <small>Solo los porcentajes activos aparecen en el combobox de clientes.</small>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={form.activo}
+                    onChange={(event) => setField("activo", event.target.checked)}
+                  />
+                  <span />
+                </label>
+              </div>
+            </div>
+            <footer>
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={() => {
+                  setPercentageFormOpen(false);
+                  setSelectedPercentage(null);
+                  setForm(blankPercentage);
+                }}
+              >
+                Cancelar
+              </button>
+              <button className="btn btn-primary" disabled={saving}>
+                {saving ? "Guardando..." : <><Save size={17} />Guardar porcentaje</>}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+    </>
+  );
 }
 
 function AdminOrderManager() {
@@ -2126,8 +2357,8 @@ function AdminDashboard({ onLogout }) {
     [ClipboardList, "Créditos", "credits", true],
   ];
 
-  return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><BrandMark /><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || section === "users" || section === "customers" ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} /><button className="icon-button admin-mobile-menu d-lg-none" type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button>
-    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : <>
+  return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><BrandMark /><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || ["users", "customers", "percentages"].includes(section) ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button><button className={section === "percentages" ? "active" : ""} onClick={() => { setSection("percentages"); setMenuOpen(false); }}><Percent size={17} /><span>Porcentajes</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} /><button className="icon-button admin-mobile-menu d-lg-none" type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button>
+    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : section === "percentages" ? <section className="admin-workspace"><PercentageManager /></section> : <>
     <section className="admin-workspace"><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Categorías</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de Categoría</span><button className="btn btn-primary" onClick={() => document.getElementById("category-name")?.focus()}><Plus size={18} />Nueva categoría</button></div></header>
       <div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">INVENTARIO</p><h2>Organiza tu Categoría</h2><p>Las categorías agrupan los productos visibles para tus clientes.</p></div><div className="summary-metric"><span>{categories.length}</span><small>Categorías registradas</small></div></section>
         <section className="content-panel"><div className="panel-heading"><div><h2>Listado de categorías</h2><p>Administra la clasificación de tu catálogo.</p></div><span className="panel-count">{categories.length} registros</span></div><form className="category-form" onSubmit={createCategory}><div><label htmlFor="category-name" className="visually-hidden">Nombre de categoría</label><input id="category-name" className="form-control" placeholder="Escribe una nueva categoría" value={name} onChange={(event) => setName(event.target.value)} maxLength="120" required /></div><button className="btn btn-primary"><Plus size={18} />Agregar</button></form>

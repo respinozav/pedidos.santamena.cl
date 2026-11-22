@@ -189,6 +189,10 @@ button, input { font: inherit; }
 .image-preview { align-items: center; display: flex; gap: .75rem; margin-top: 1rem; }
 .image-preview img { border: 1px solid var(--line); border-radius: 5px; height: 58px; object-fit: cover; width: 58px; }
 .user-table { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.percentage-table { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.percentage-table-head, .percentage-row { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 82px 38px; }
+.percentage-table-head { background: #f8fafc; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .04rem; padding: .7rem 1rem; text-transform: uppercase; }
+.percentage-row { border-top: 1px solid var(--line); padding: .75rem 1rem; }
 .user-table-head, .user-row { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(0, 1.5fr) minmax(100px, .8fr) 82px 38px; }
 .customer-table-head, .customer-row { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.2fr) 42px 56px 76px 38px; }
 .customer-row { cursor: pointer; }

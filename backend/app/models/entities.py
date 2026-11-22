@@ -45,8 +45,20 @@ class Usuario(AuditMixin, Base):
     correo: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     rol_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("roles.id"), index=True)
+    porcentaje_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("porcentajes.id"), nullable=True, index=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     rol: Mapped[Rol] = relationship(back_populates="usuarios")
+    porcentaje: Mapped["Porcentaje | None"] = relationship()
+
+
+class Porcentaje(AuditMixin, Base):
+    __tablename__ = "porcentajes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    valor: Mapped[Decimal] = mapped_column(Numeric(5, 2), unique=True, index=True)
+    nombre: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Categoria(AuditMixin, Base):
@@ -88,12 +100,14 @@ class Cliente(AuditMixin, Base):
     celular: Mapped[str | None] = mapped_column(String(30), unique=True, index=True, nullable=True)
     correo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
+    porcentaje_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("porcentajes.id"), nullable=True, index=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     con_decimal: Mapped[bool] = mapped_column(Boolean, default=False)
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     direcciones: Mapped[list["Direccion"]] = relationship(back_populates="cliente")
     pedidos: Mapped[list["Pedido"]] = relationship(back_populates="cliente")
     creditos: Mapped[list["Credito"]] = relationship(back_populates="cliente")
+    porcentaje_rel: Mapped["Porcentaje | None"] = relationship()
 
 
 class Direccion(AuditMixin, Base):

@@ -94,12 +94,28 @@ class AddressOutput(AddressInput, ORMModel):
     cliente_id: UUID
 
 
+class PercentageInput(BaseModel):
+    valor: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+    nombre: str | None = Field(default=None, max_length=50)
+    activo: bool = True
+
+    @field_validator("nombre")
+    @classmethod
+    def normalize_name(cls, value: str | None) -> str | None:
+        return value.strip() if value else None
+
+
+class PercentageOutput(PercentageInput, ORMModel):
+    id: UUID
+
+
 class CustomerInput(BaseModel):
     rut: str | None = Field(default=None, max_length=20)
     nombre: str | None = Field(default=None, max_length=180)
     celular: str | None = Field(default=None, max_length=30)
     correo: EmailStr | None = None
     porcentaje: Decimal = Field(default=0, ge=0, le=100, max_digits=5, decimal_places=2)
+    porcentaje_id: UUID | None = None
     con_decimal: bool = False
     activo: bool = True
 
@@ -115,6 +131,8 @@ class CustomerInput(BaseModel):
 
 class CustomerOutput(CustomerInput, ORMModel):
     id: UUID
+    porcentaje_id: UUID | None = None
+    porcentaje_rel: PercentageOutput | None = None
     direcciones: list[AddressOutput] = []
 
 
@@ -137,6 +155,7 @@ class UserInput(BaseModel):
     nombre: str = Field(min_length=2, max_length=150)
     correo: EmailStr
     rol_id: UUID
+    porcentaje_id: UUID | None = None
     activo: bool = True
 
 
@@ -151,6 +170,7 @@ class UserUpdate(UserInput):
 class UserOutput(UserInput, ORMModel):
     id: UUID
     rol: RoleOutput
+    porcentaje: PercentageOutput | None = None
 
 
 class TokenOutput(BaseModel):
