@@ -132,100 +132,10 @@ function AdminAccess({ onLogin, onCustomerAccess }) {
   </form></main>;
 }
 
-function ProductManagerLegacy({ categories }) {
-  const emptyProduct = { categoria_id: "", codigo: "", nombre: "", precio: "", cantidad: "0", imagen_url: "", activo: true };
-  const [products, setProducts] = useState([]);
-  const [form, setForm] = useState(emptyProduct);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  async function loadProducts() {
-    try {
-      const { data } = await api.get("/admin/productos");
-      setProducts(data);
-    } catch {
-      setError("No fue posible cargar los productos.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { loadProducts(); }, []);
-
-  function setField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  function attachImage(event) {
-    const [file] = event.target.files;
-    if (!file) return;
-    if (file.type !== "image/jpeg" || !/\.jpe?g$/i.test(file.name)) {
-      setError("Adjunta solo una imagen JPG.");
-      event.target.value = "";
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("La imagen JPG no puede superar 5 MB.");
-      event.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setField("imagen_url", String(reader.result).split(",")[1]);
-      setError("");
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function openCreate() {
-    setEditingProduct(null);
-    setForm({ ...emptyProduct, categoria_id: categories.find((category) => category.activo)?.id ?? "" });
-    setError("");
-  }
-
-  function openEdit(product) {
-    setEditingProduct(product);
-    setForm({ ...product, precio: String(product.precio), cantidad: String(product.cantidad), imagen_url: product.imagen_url ?? "" });
-    setError("");
-  }
-
-  async function saveProduct(event) {
-    event.preventDefault();
-    if (!form.categoria_id) {
-      setError("Selecciona una categoría para el producto.");
-      return;
-    }
-    setSaving(true);
-    const payload = { ...form, nombre: form.nombre.trim().toUpperCase(), precio: Number(form.precio), cantidad: Number(form.cantidad), imagen_url: form.imagen_url || null };
-    try {
-      if (editingProduct) {
-        await api.put(`/productos/${editingProduct.id}`, payload);
-        setNotice("Producto actualizado correctamente.");
-      } else {
-        await api.post("/productos", payload);
-        setNotice("Producto agregado correctamente.");
-      }
-      setEditingProduct(null);
-      setForm(emptyProduct);
-      setError("");
-      await loadProducts();
-    } catch {
-      setError("No fue posible guardar el producto. Revisa que el código no esté repetido.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const categoryName = (id) => categories.find((category) => category.id === id)?.nombre ?? "Sin categoría";
-  return <><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Productos</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de inventario</span><button className="btn btn-primary" onClick={openCreate}><Plus size={18} />Nuevo producto</button></div></header><div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">INVENTARIO</p><h2>Controla tu Productos</h2><p>Gestiona precios, disponibilidad y stock para los pedidos de clientes.</p></div><div className="summary-metric"><span>{products.length}</span><small>Productos registrados</small></div></section><section className="content-panel"><div className="panel-heading"><div><h2>Listado de productos</h2><p>Productos activos e inactivos del catálogo.</p></div><span className="panel-count">{products.length} registros</span></div>{notice && <div className="alert alert-success alert-dismissible fade show mt-3 mb-0 category-notice" role="alert"><CheckCircle2 size={18} />{notice}<button type="button" className="btn-close" aria-label="Cerrar" onClick={() => setNotice("")} /></div>}{error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}{loading ? <p className="mt-4 text-secondary">Cargando productos...</p> : <div className="product-table mt-4"><div className="product-table-head"><span>Producto</span><span className="d-none d-md-block">Categoría</span><span>Precio</span><span>Stock</span><span>Estado</span><span>Acciones</span></div>{products.length ? products.map((product) => <div className="product-row" key={product.id}><div className="product-name"><span className="product-thumb">{product.imagen_url ? <img src={product.imagen_url} alt="" /> : <Package size={18} />}</span><div><strong>{product.nombre}</strong><small>{product.codigo}</small></div></div><span className="d-none d-md-block product-category">{categoryName(product.categoria_id)}</span><strong>{money.format(product.precio)}</strong><span>{product.cantidad}</span><span className={product.activo ? "status-active" : "status-inactive"}>{product.activo ? "Activo" : "Inactivo"}</span><button className="icon-button category-edit" onClick={() => openEdit(product)} aria-label={`Editar ${product.nombre}`}><Pencil size={16} /></button></div>) : <p className="text-secondary p-4 mb-0">Aún no hay productos. Agrega el primero para comenzar.</p>}</div>}</section></div>{(editingProduct || form.categoria_id) && <div className="modal-backdrop-custom" role="presentation"><form className="category-modal product-modal" onSubmit={saveProduct} role="dialog" aria-modal="true" aria-labelledby="product-form-title"><header><div><p className="eyebrow">CATALOGO</p><h2 id="product-form-title">{editingProduct ? "Editar producto" : "Nuevo producto"}</h2></div><button type="button" className="icon-button" onClick={() => { setEditingProduct(null); setForm(emptyProduct); }} aria-label="Cerrar formulario"><X size={19} /></button></header><div className="modal-body-custom"><div className="product-form-grid"><div className="product-form-wide"><label htmlFor="product-category" className="form-label">Categoría</label><select id="product-category" className="form-select" value={form.categoria_id} onChange={(event) => setField("categoria_id", event.target.value)} required><option value="">Selecciona una categoría</option>{categories.filter((category) => category.activo || category.id === form.categoria_id).map((category) => <option key={category.id} value={category.id}>{category.nombre}</option>)}</select></div><div><label htmlFor="product-code" className="form-label">Código</label><input id="product-code" className="form-control" value={form.codigo} onChange={(event) => setField("codigo", event.target.value)} maxLength="50" required /></div><div><label htmlFor="product-stock" className="form-label">Stock</label><input id="product-stock" className="form-control" type="number" min="0" value={form.cantidad} onChange={(event) => setField("cantidad", event.target.value)} required /></div><div className="product-form-wide"><label htmlFor="product-name" className="form-label">Nombre</label><input id="product-name" className="form-control" value={form.nombre} onChange={(event) => setField("nombre", event.target.value)} maxLength="180" required autoFocus /></div><div><label htmlFor="product-price" className="form-label">Precio base</label><input id="product-price" className="form-control" type="number" min="1" step="1" value={form.precio} onChange={(event) => setField("precio", event.target.value)} required /></div><div><label htmlFor="product-image" className="form-label">URL imagen</label><input id="product-image" className="form-control" type="url" placeholder="https://..." value={form.imagen_url} onChange={(event) => setField("imagen_url", event.target.value)} /></div></div><div className="status-toggle"><div><strong>Producto disponible</strong><small>Los productos inactivos no aparecen a los clientes.</small></div><label className="switch"><input type="checkbox" checked={form.activo} onChange={(event) => setField("activo", event.target.checked)} /><span /></label></div></div><footer><button type="button" className="btn btn-light" onClick={() => { setEditingProduct(null); setForm(emptyProduct); }}>Cancelar</button><button className="btn btn-primary" disabled={saving}>{saving ? "Guardando..." : <><Save size={17} />Guardar producto</>}</button></footer></form></div>}</>;
-}
-
 function ProductManager({ categories }) {
   const blankProduct = {
     categoria_id: "",
+    codigointerno: "",
     codigo: "",
     nombre: "",
     precio: "",
@@ -383,6 +293,8 @@ function ProductManager({ categories }) {
       current
         ? {
             ...current,
+            codigointerno: current.codigointerno || current.codigo || "",
+            codigo: current.codigointerno || current.codigo || "",
             precio: String(current.precio),
             cantidad: String(current.cantidad),
             imagen_url: current.imagen_url ?? "",
@@ -424,6 +336,10 @@ function ProductManager({ categories }) {
       cantidad: Number(form.cantidad),
       imagen_url: form.imagen_url || null,
     };
+    if (!product) {
+      delete payload.codigointerno;
+      delete payload.codigo;
+    }
     if (!payload.categoria_id) {
       setError("Selecciona una categoría.");
       return;
@@ -443,7 +359,7 @@ function ProductManager({ categories }) {
       await loadProducts();
     } catch {
       setError(
-        "No fue posible guardar el producto. Revisa sus datos y el código.",
+        "No fue posible guardar el producto. Revisa sus datos.",
       );
     } finally {
       setSaving(false);
@@ -527,7 +443,7 @@ function ProductManager({ categories }) {
                     </span>
                     <div>
                       <strong>{item.nombre}</strong>
-                      <small>{item.codigo}</small>
+                      <small>#{item.codigointerno || item.codigo}</small>
                     </div>
                   </div>
                   <span className="d-none d-md-block product-category">
@@ -610,15 +526,24 @@ function ProductManager({ categories }) {
                 </div>
                 <div>
                   <label className="form-label" htmlFor="product-code-base64">
-                    Código
+                    Código Interno
                   </label>
                   <input
                     id="product-code-base64"
                     className="form-control"
-                    value={form.codigo}
-                    onChange={(event) => setField("codigo", event.target.value)}
-                    required
+                    value={
+                      product
+                        ? (form.codigointerno || form.codigo || "")
+                        : "Automático (desde 100)"
+                    }
+                    disabled
+                    readOnly
                   />
+                  <small className="form-text text-muted">
+                    {product
+                      ? "Correlativo asignado automáticamente"
+                      : "Correlativo asignado desde 100"}
+                  </small>
                 </div>
                 <div>
                   <label className="form-label" htmlFor="product-stock-base64">
@@ -1608,7 +1533,9 @@ function ExternalCodeManager() {
     const term = search.toLowerCase();
     const codeMatch = String(item.codigo_externo).includes(term);
     const prodNameMatch = item.producto?.nombre?.toLowerCase().includes(term);
-    const prodCodeMatch = item.producto?.codigo?.toLowerCase().includes(term);
+    const prodCodeMatch = (item.producto?.codigointerno || item.producto?.codigo || "")
+      .toLowerCase()
+      .includes(term);
     return codeMatch || prodNameMatch || prodCodeMatch;
   });
 
@@ -1683,7 +1610,7 @@ function ExternalCodeManager() {
                     <strong>#{item.codigo_externo}</strong>
                     <div>
                       <strong>{item.producto?.nombre || "Producto desconocido"}</strong>
-                      <small className="text-secondary d-block">{item.producto?.codigo || ""}</small>
+                      <small className="text-secondary d-block">#{item.producto?.codigointerno || item.producto?.codigo || ""}</small>
                     </div>
                     <span>{item.porcentaje?.nombre || (item.porcentaje ? `${Number(item.porcentaje.valor)}%` : "-")}</span>
                     <label className="switch" title={item.activo ? "Desactivar" : "Activar"}>
@@ -1785,7 +1712,7 @@ function ExternalCodeManager() {
                       .filter((prod) => prod.activo || prod.id === form.producto_id)
                       .map((prod) => (
                         <option key={prod.id} value={prod.id}>
-                          {prod.codigo} - {prod.nombre}
+                          #{prod.codigointerno || prod.codigo} - {prod.nombre}
                         </option>
                       ))}
                   </select>

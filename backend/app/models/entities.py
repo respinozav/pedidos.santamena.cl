@@ -79,7 +79,7 @@ class Producto(AuditMixin, Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     categoria_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categorias.id"), index=True)
-    codigo: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    codigointerno: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     nombre: Mapped[str] = mapped_column(String(180), index=True)
     precio: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
@@ -88,6 +88,14 @@ class Producto(AuditMixin, Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     categoria: Mapped[Categoria] = relationship(back_populates="productos")
+
+    @property
+    def codigo(self) -> str:
+        return self.codigointerno
+
+    @codigo.setter
+    def codigo(self, value: str) -> None:
+        self.codigointerno = value
 
 
 class Cliente(AuditMixin, Base):

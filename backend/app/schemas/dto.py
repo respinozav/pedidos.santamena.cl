@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 
@@ -29,7 +29,11 @@ class CategoryOutput(CategoryInput, ORMModel):
 
 class ProductInput(BaseModel):
     categoria_id: UUID
-    codigo: str = Field(min_length=1, max_length=50)
+    codigointerno: str | None = Field(
+        default=None,
+        max_length=50,
+        validation_alias=AliasChoices("codigointerno", "codigo"),
+    )
     nombre: str = Field(min_length=2, max_length=180)
     precio: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     cantidad: Decimal = Field(max_digits=12, decimal_places=2)
@@ -49,10 +53,10 @@ class ProductInput(BaseModel):
     def normalize_name(cls, value: str) -> str:
         return value.strip().upper()
 
-    @field_validator("codigo")
+    @field_validator("codigointerno")
     @classmethod
-    def normalize_code(cls, value: str) -> str:
-        return value.strip().upper()
+    def normalize_code(cls, value: str | None) -> str | None:
+        return value.strip().upper() if value else None
 
     @field_validator("imagen_url")
     @classmethod
@@ -72,7 +76,15 @@ class ProductInput(BaseModel):
 
 class ProductOutput(ProductInput, ORMModel):
     id: UUID
+    codigointerno: str
+    codigo: str | None = None
     precio_cliente: Decimal | None = None
+
+    @model_validator(mode="after")
+    def sync_codigo(self) -> "ProductOutput":
+        if not self.codigo and self.codigointerno:
+            self.codigo = self.codigointerno
+        return self
 
 
 class ProductPage(BaseModel):

@@ -3,10 +3,11 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import AdminUser, DatabaseSession
+from app.core.config import get_settings
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.entities import Categoria, Cliente, CodigoExterno, Credito, Direccion, Estado, Porcentaje, Producto, Rol, Usuario
 from app.repositories.base import Repository
@@ -142,6 +143,24 @@ def delete_category(category_id: UUID, database: DatabaseSession, _: AdminUser) 
     database.commit()
 
 
+def get_next_codigointerno(database: Session) -> str:
+    bind = database.get_bind()
+    if bind and bind.dialect.name == "postgresql":
+        schema = getattr(get_settings(), "database_schema", "bdsantamena")
+        seq_name = f'"{schema}"."productos_codigointerno_seq"' if schema else '"productos_codigointerno_seq"'
+        val = database.scalar(text(f"SELECT nextval('{seq_name}')"))
+        return str(val)
+
+    rows = database.scalars(select(Producto.codigointerno)).all()
+    max_val = 99
+    for code in rows:
+        if code and code.isdigit():
+            num = int(code)
+            if num > max_val:
+                max_val = num
+    return str(max_val + 1)
+
+
 @router.get("/productos", response_model=ProductPage, tags=["Productos"])
 def list_products(
     database: DatabaseSession,
@@ -155,7 +174,9 @@ def list_products(
     if category_id:
         statement = statement.where(Producto.categoria_id == category_id)
     if search:
-        statement = statement.where(Producto.nombre.ilike(f"%{search}%"))
+        statement = statement.where(
+            Producto.nombre.ilike(f"%{search}%") | Producto.codigointerno.ilike(f"%{search}%")
+        )
     customer = database.get(Cliente, customer_id) if customer_id else None
     total = database.scalar(select(func.count()).select_from(statement.subquery())) or 0
     products = database.scalars(statement.order_by(Producto.nombre).offset((page - 1) * page_size).limit(page_size))
@@ -181,7 +202,9 @@ def list_admin_products(
     if category_id:
         statement = statement.where(Producto.categoria_id == category_id)
     if search:
-        statement = statement.where(Producto.nombre.ilike(f"%{search}%"))
+        statement = statement.where(
+            Producto.nombre.ilike(f"%{search}%") | Producto.codigointerno.ilike(f"%{search}%")
+        )
     if stock_lt is not None:
         statement = statement.where(Producto.cantidad < stock_lt)
     total = database.scalar(select(func.count()).select_from(statement.subquery())) or 0
@@ -191,10 +214,16 @@ def list_admin_products(
 
 @router.post("/productos", response_model=ProductOutput, status_code=status.HTTP_201_CREATED, tags=["Productos"])
 def create_product(payload: ProductInput, database: DatabaseSession, _: AdminUser) -> Producto:
-    duplicate = database.scalar(select(Producto.id).where(func.lower(Producto.codigo) == payload.codigo.lower()))
+    values = payload.model_dump()
+    if not values.get("codigointerno"):
+        values["codigointerno"] = get_next_codigointerno(database)
+
+    duplicate = database.scalar(
+        select(Producto.id).where(func.lower(Producto.codigointerno) == values["codigointerno"].lower())
+    )
     if duplicate:
         raise HTTPException(status.HTTP_409_CONFLICT, "El código de producto ya existe")
-    entity = Repository(Producto, database).add(Producto(**payload.model_dump()))
+    entity = Repository(Producto, database).add(Producto(**values))
     database.commit()
     return entity
 
@@ -204,10 +233,19 @@ def update_product(product_id: UUID, payload: ProductInput, database: DatabaseSe
     entity = Repository(Producto, database).get(product_id)
     if not entity or entity.eliminado_at:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Producto no encontrado")
-    duplicate = database.scalar(select(Producto.id).where(func.lower(Producto.codigo) == payload.codigo.lower(), Producto.id != product_id))
+    values = payload.model_dump()
+    if not values.get("codigointerno"):
+        values["codigointerno"] = entity.codigointerno
+
+    duplicate = database.scalar(
+        select(Producto.id).where(
+            func.lower(Producto.codigointerno) == values["codigointerno"].lower(),
+            Producto.id != product_id,
+        )
+    )
     if duplicate:
         raise HTTPException(status.HTTP_409_CONFLICT, "El código de producto ya existe")
-    Repository(Producto, database).update(entity, payload.model_dump())
+    Repository(Producto, database).update(entity, values)
     database.commit()
     return entity
 
@@ -309,7 +347,7 @@ def list_external_codes(
             statement = statement.where(CodigoExterno.codigo_externo == search_int)
         else:
             statement = statement.join(CodigoExterno.producto).where(
-                Producto.nombre.ilike(f"%{search_term}%") | Producto.codigo.ilike(f"%{search_term}%")
+                Producto.nombre.ilike(f"%{search_term}%") | Producto.codigointerno.ilike(f"%{search_term}%")
             )
     return list(database.scalars(statement.order_by(CodigoExterno.codigo_externo)))
 
