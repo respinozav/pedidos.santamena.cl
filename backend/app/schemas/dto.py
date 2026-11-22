@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 
@@ -107,6 +107,25 @@ class PercentageInput(BaseModel):
 
 class PercentageOutput(PercentageInput, ORMModel):
     id: UUID
+
+
+class ExternalCodeInput(BaseModel):
+    codigo_externo: int = Field(gt=0, validation_alias=AliasChoices("codigo_externo", "codoexterno"))
+    producto_id: UUID = Field(validation_alias=AliasChoices("producto_id", "idproducto"))
+    porcentaje_id: UUID = Field(validation_alias=AliasChoices("porcentaje_id", "idporcentaje"))
+    activo: bool = True
+
+
+class ExternalCodeOutput(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    codigo_externo: int
+    producto_id: UUID
+    porcentaje_id: UUID
+    activo: bool
+    producto: ProductOutput | None = None
+    porcentaje: PercentageOutput | None = None
 
 
 class CustomerInput(BaseModel):

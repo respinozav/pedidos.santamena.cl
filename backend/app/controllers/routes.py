@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import AdminUser, DatabaseSession
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models.entities import Categoria, Cliente, Credito, Direccion, Estado, Porcentaje, Producto, Rol, Usuario
+from app.models.entities import Categoria, Cliente, CodigoExterno, Credito, Direccion, Estado, Porcentaje, Producto, Rol, Usuario
 from app.repositories.base import Repository
 from app.schemas.dto import (
     AddressInput,
@@ -20,6 +20,8 @@ from app.schemas.dto import (
     CustomerAccessRequest,
     CustomerInput,
     CustomerOutput,
+    ExternalCodeInput,
+    ExternalCodeOutput,
     OrderCreate,
     OrderCreditCreate,
     OrderOutput,
@@ -271,6 +273,147 @@ def delete_percentage(percentage_id: UUID, database: DatabaseSession, _: AdminUs
     if not entity or entity.eliminado_at:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Porcentaje no encontrado")
     Repository(Porcentaje, database).soft_delete(entity)
+    database.commit()
+
+
+@router.get("/productos/selector", response_model=list[ProductOutput], tags=["Productos"])
+def list_products_for_selector(database: DatabaseSession, _: AdminUser, active_only: bool = True) -> list[Producto]:
+    statement = select(Producto).where(Producto.eliminado_at.is_(None))
+    if active_only:
+        statement = statement.where(Producto.activo.is_(True))
+    return list(database.scalars(statement.order_by(Producto.nombre)))
+
+
+@router.get("/codigos-externos", response_model=list[ExternalCodeOutput], tags=["Codigos Externos"])
+def list_external_codes(
+    database: DatabaseSession,
+    _: AdminUser,
+    active_only: bool = False,
+    search: str | None = None,
+) -> list[CodigoExterno]:
+    statement = (
+        select(CodigoExterno)
+        .options(selectinload(CodigoExterno.producto), selectinload(CodigoExterno.porcentaje))
+        .where(CodigoExterno.eliminado_at.is_(None))
+    )
+    if active_only:
+        statement = statement.where(CodigoExterno.activo.is_(True))
+    if search:
+        search_term = search.strip()
+        search_int = None
+        try:
+            search_int = int(search_term)
+        except ValueError:
+            pass
+        if search_int is not None:
+            statement = statement.where(CodigoExterno.codigo_externo == search_int)
+        else:
+            statement = statement.join(CodigoExterno.producto).where(
+                Producto.nombre.ilike(f"%{search_term}%") | Producto.codigo.ilike(f"%{search_term}%")
+            )
+    return list(database.scalars(statement.order_by(CodigoExterno.codigo_externo)))
+
+
+@router.post(
+    "/codigos-externos",
+    response_model=ExternalCodeOutput,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Codigos Externos"],
+)
+def create_external_code(payload: ExternalCodeInput, database: DatabaseSession, _: AdminUser) -> CodigoExterno:
+    product = database.get(Producto, payload.producto_id)
+    if not product or product.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Producto no encontrado")
+    percentage = database.get(Porcentaje, payload.porcentaje_id)
+    if not percentage or percentage.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Porcentaje no encontrado")
+
+    duplicate_code = database.scalar(
+        select(CodigoExterno.id).where(
+            CodigoExterno.codigo_externo == payload.codigo_externo,
+            CodigoExterno.eliminado_at.is_(None),
+        )
+    )
+    if duplicate_code:
+        raise HTTPException(status.HTTP_409_CONFLICT, "El código externo ya está registrado")
+
+    duplicate_pair = database.scalar(
+        select(CodigoExterno.id).where(
+            CodigoExterno.producto_id == payload.producto_id,
+            CodigoExterno.porcentaje_id == payload.porcentaje_id,
+            CodigoExterno.eliminado_at.is_(None),
+        )
+    )
+    if duplicate_pair:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Ya existe un código externo configurado para este producto y porcentaje",
+        )
+
+    entity = Repository(CodigoExterno, database).add(CodigoExterno(**payload.model_dump()))
+    database.commit()
+    database.refresh(entity, attribute_names=["producto", "porcentaje"])
+    return entity
+
+
+@router.put(
+    "/codigos-externos/{external_code_id}",
+    response_model=ExternalCodeOutput,
+    tags=["Codigos Externos"],
+)
+def update_external_code(
+    external_code_id: UUID,
+    payload: ExternalCodeInput,
+    database: DatabaseSession,
+    _: AdminUser,
+) -> CodigoExterno:
+    entity = Repository(CodigoExterno, database).get(external_code_id)
+    if not entity or entity.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Código externo no encontrado")
+
+    product = database.get(Producto, payload.producto_id)
+    if not product or product.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Producto no encontrado")
+    percentage = database.get(Porcentaje, payload.porcentaje_id)
+    if not percentage or percentage.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Porcentaje no encontrado")
+
+    duplicate_code = database.scalar(
+        select(CodigoExterno.id).where(
+            CodigoExterno.codigo_externo == payload.codigo_externo,
+            CodigoExterno.id != external_code_id,
+            CodigoExterno.eliminado_at.is_(None),
+        )
+    )
+    if duplicate_code:
+        raise HTTPException(status.HTTP_409_CONFLICT, "El código externo ya está registrado")
+
+    duplicate_pair = database.scalar(
+        select(CodigoExterno.id).where(
+            CodigoExterno.producto_id == payload.producto_id,
+            CodigoExterno.porcentaje_id == payload.porcentaje_id,
+            CodigoExterno.id != external_code_id,
+            CodigoExterno.eliminado_at.is_(None),
+        )
+    )
+    if duplicate_pair:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Ya existe un código externo configurado para este producto y porcentaje",
+        )
+
+    Repository(CodigoExterno, database).update(entity, payload.model_dump())
+    database.commit()
+    database.refresh(entity, attribute_names=["producto", "porcentaje"])
+    return entity
+
+
+@router.delete("/codigos-externos/{external_code_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Codigos Externos"])
+def delete_external_code(external_code_id: UUID, database: DatabaseSession, _: AdminUser) -> None:
+    entity = Repository(CodigoExterno, database).get(external_code_id)
+    if not entity or entity.eliminado_at:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Código externo no encontrado")
+    Repository(CodigoExterno, database).soft_delete(entity)
     database.commit()
 
 

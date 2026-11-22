@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Percent, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
+import { Boxes, CheckCircle2, ClipboardList, Eye, FolderTree, Hash, LayoutDashboard, LogOut, MapPin, Menu, Package, Pencil, Percent, Plus, Save, Search, Settings, ShoppingBag, Users, X } from "lucide-react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 import { api, setAdminToken } from "./services/api";
@@ -1487,6 +1487,348 @@ function PercentageManager() {
   );
 }
 
+function ExternalCodeManager() {
+  const blankForm = { codigo_externo: "", producto_id: "", porcentaje_id: "", activo: true };
+  const [items, setItems] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [percentages, setPercentages] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [form, setForm] = useState(blankForm);
+  const [search, setSearch] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function loadData() {
+    try {
+      const [codesRes, prodsRes, pctsRes] = await Promise.all([
+        api.get("/codigos-externos"),
+        api.get("/productos/selector"),
+        api.get("/porcentajes"),
+      ]);
+      setItems(codesRes.data);
+      setProducts(prodsRes.data);
+      setPercentages(pctsRes.data);
+      return codesRes.data;
+    } catch {
+      setError("No fue posible cargar los códigos externos.");
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadData(); }, []);
+
+  function setField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function openCreate() {
+    setSelectedItem(null);
+    setForm(blankForm);
+    setError("");
+    setModalOpen(true);
+  }
+
+  function openEdit(item) {
+    setSelectedItem(item);
+    setForm({
+      codigo_externo: String(item.codigo_externo),
+      producto_id: item.producto_id,
+      porcentaje_id: item.porcentaje_id,
+      activo: item.activo,
+    });
+    setError("");
+    setModalOpen(true);
+  }
+
+  async function saveItem(event) {
+    event.preventDefault();
+    if (!form.codigo_externo || Number.isNaN(Number(form.codigo_externo)) || Number(form.codigo_externo) <= 0) {
+      setError("Indica un código externo numérico entero positivo.");
+      return;
+    }
+    if (!form.producto_id) {
+      setError("Selecciona un producto.");
+      return;
+    }
+    if (!form.porcentaje_id) {
+      setError("Selecciona un porcentaje.");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      codigo_externo: parseInt(form.codigo_externo, 10),
+      producto_id: form.producto_id,
+      porcentaje_id: form.porcentaje_id,
+      activo: Boolean(form.activo),
+    };
+    try {
+      if (selectedItem) {
+        await api.put(`/codigos-externos/${selectedItem.id}`, payload);
+      } else {
+        await api.post("/codigos-externos", payload);
+      }
+      setNotice(selectedItem ? "Código externo modificado correctamente." : "Código externo creado correctamente.");
+      setModalOpen(false);
+      setSelectedItem(null);
+      setForm(blankForm);
+      setError("");
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible guardar el código externo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(item) {
+    setSaving(true);
+    try {
+      await api.put(`/codigos-externos/${item.id}`, {
+        codigo_externo: item.codigo_externo,
+        producto_id: item.producto_id,
+        porcentaje_id: item.porcentaje_id,
+        activo: !item.activo,
+      });
+      setNotice(`Código externo ${!item.activo ? "activado" : "desactivado"} correctamente.`);
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? "No fue posible cambiar el estado del código externo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const filteredItems = items.filter((item) => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    const codeMatch = String(item.codigo_externo).includes(term);
+    const prodNameMatch = item.producto?.nombre?.toLowerCase().includes(term);
+    const prodCodeMatch = item.producto?.codigo?.toLowerCase().includes(term);
+    return codeMatch || prodNameMatch || prodCodeMatch;
+  });
+
+  return (
+    <>
+      <header className="admin-topbar">
+        <div className="topbar-title">
+          <p className="eyebrow mb-1">CONFIGURACION</p>
+          <h1>Código Externo</h1>
+        </div>
+        <div className="topbar-actions">
+          <span className="topbar-date d-none d-sm-inline">Gestión de códigos externos</span>
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={18} />
+            Nuevo código externo
+          </button>
+        </div>
+      </header>
+      <div className="admin-content">
+        <section className="admin-summary">
+          <div>
+            <p className="eyebrow">INTEGRACION / CATALOGO</p>
+            <h2>Administra los códigos externos</h2>
+            <p>Asocia códigos numéricos externos a cada combinación de producto y porcentaje.</p>
+          </div>
+          <div className="summary-metric">
+            <span>{items.length}</span>
+            <small>Códigos registrados</small>
+          </div>
+        </section>
+        <section className="content-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Listado de códigos externos</h2>
+              <p>Códigos asociados a productos y porcentajes para integración externa.</p>
+            </div>
+            <span className="panel-count">{filteredItems.length} de {items.length} registros</span>
+          </div>
+          <div className="mt-3">
+            <div className="search-field" style={{ maxWidth: "340px" }}>
+              <Search size={18} />
+              <input
+                className="form-control"
+                placeholder="Buscar por código o producto..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          {notice && (
+            <div className="alert alert-success alert-dismissible fade show mt-3 category-notice">
+              <CheckCircle2 size={18} />
+              {notice}
+              <button className="btn-close" type="button" onClick={() => setNotice("")} />
+            </div>
+          )}
+          {error && !modalOpen && <div className="alert alert-danger mt-3">{error}</div>}
+          {loading ? (
+            <p className="mt-4 text-secondary">Cargando códigos externos...</p>
+          ) : (
+            <div className="external-code-table mt-4">
+              <div className="external-code-table-head">
+                <span>Cód. Externo</span>
+                <span>Producto</span>
+                <span>Porcentaje</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
+              {filteredItems.length ? (
+                filteredItems.map((item) => (
+                  <div className="external-code-row" key={item.id}>
+                    <strong>#{item.codigo_externo}</strong>
+                    <div>
+                      <strong>{item.producto?.nombre || "Producto desconocido"}</strong>
+                      <small className="text-secondary d-block">{item.producto?.codigo || ""}</small>
+                    </div>
+                    <span>{item.porcentaje?.nombre || (item.porcentaje ? `${Number(item.porcentaje.valor)}%` : "-")}</span>
+                    <label className="switch" title={item.activo ? "Desactivar" : "Activar"}>
+                      <input
+                        type="checkbox"
+                        checked={item.activo}
+                        disabled={saving}
+                        onChange={() => toggleActive(item)}
+                      />
+                      <span />
+                    </label>
+                    <button
+                      className="icon-button category-edit"
+                      onClick={() => openEdit(item)}
+                      aria-label={`Editar código externo ${item.codigo_externo}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-secondary p-4 mb-0">
+                  {items.length ? "No se encontraron coincidencias para la búsqueda." : "Aún no hay códigos externos registrados."}
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+      {modalOpen && (
+        <div className="modal-backdrop-custom">
+          <form className="category-modal" onSubmit={saveItem}>
+            <header>
+              <div>
+                <p className="eyebrow">CONFIGURACION</p>
+                <h2>{selectedItem ? "Modificar código externo" : "Nuevo código externo"}</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => {
+                  setModalOpen(false);
+                  setSelectedItem(null);
+                  setForm(blankForm);
+                }}
+                aria-label="Cerrar formulario"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="modal-body-custom">
+              {error && <div className="alert alert-danger mb-3">{error}</div>}
+              <div className="product-form-grid">
+                <div>
+                  <label className="form-label" htmlFor="external-code-val">Código Externo</label>
+                  <input
+                    id="external-code-val"
+                    className="form-control"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Ej: 1001"
+                    value={form.codigo_externo}
+                    onChange={(event) => setField("codigo_externo", event.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="external-code-pct">Porcentaje</label>
+                  <select
+                    id="external-code-pct"
+                    className="form-select"
+                    value={form.porcentaje_id}
+                    onChange={(event) => setField("porcentaje_id", event.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona un porcentaje</option>
+                    {percentages
+                      .filter((p) => p.activo || p.id === form.porcentaje_id)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre || `${Number(p.valor)}%`}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="product-form-wide">
+                  <label className="form-label" htmlFor="external-code-prod">Producto</label>
+                  <select
+                    id="external-code-prod"
+                    className="form-select"
+                    value={form.producto_id}
+                    onChange={(event) => setField("producto_id", event.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona un producto</option>
+                    {products
+                      .filter((prod) => prod.activo || prod.id === form.producto_id)
+                      .map((prod) => (
+                        <option key={prod.id} value={prod.id}>
+                          {prod.codigo} - {prod.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+              <div className="status-toggle mt-3">
+                <div>
+                  <strong>Código externo activo</strong>
+                  <small>Desactiva para inhabilitar temporalmente este código externo.</small>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={form.activo}
+                    onChange={(event) => setField("activo", event.target.checked)}
+                  />
+                  <span />
+                </label>
+              </div>
+            </div>
+            <footer>
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={() => {
+                  setModalOpen(false);
+                  setSelectedItem(null);
+                  setForm(blankForm);
+                }}
+              >
+                Cancelar
+              </button>
+              <button className="btn btn-primary" disabled={saving}>
+                {saving ? "Guardando..." : <><Save size={17} />{selectedItem ? "Guardar cambios" : "Crear código externo"}</>}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
 function AdminOrderManager() {
   const [orders, setOrders] = useState([]);
   const [states, setStates] = useState([]);
@@ -2357,8 +2699,8 @@ function AdminDashboard({ onLogout }) {
     [ClipboardList, "Créditos", "credits", true],
   ];
 
-  return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><BrandMark /><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || ["users", "customers", "percentages"].includes(section) ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button><button className={section === "percentages" ? "active" : ""} onClick={() => { setSection("percentages"); setMenuOpen(false); }}><Percent size={17} /><span>Porcentajes</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} /><button className="icon-button admin-mobile-menu d-lg-none" type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button>
-    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : section === "percentages" ? <section className="admin-workspace"><PercentageManager /></section> : <>
+  return <main className="admin-app"><aside className={`admin-sidebar ${menuOpen ? "is-open" : ""}`}><div className="sidebar-brand"><BrandMark /><span>Santa Mena</span><button className="sidebar-close d-lg-none" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú"><X size={20} /></button></div><p className="sidebar-label">OPERACION</p><nav className="sidebar-nav">{navigation.map(([Icon, label, key, enabled]) => <button key={label} className={section === key ? "active" : ""} disabled={!enabled} onClick={() => { setSection(key); setMenuOpen(false); }}><Icon size={19} /><span>{label}</span>{!enabled && <small>Pronto</small>}</button>)}<div className="sidebar-configuration"><button className={configurationOpen || ["users", "customers", "percentages", "external-codes"].includes(section) ? "active" : ""} onClick={() => setConfigurationOpen((current) => !current)}><Settings size={19} /><span>Configuración</span></button>{configurationOpen && <div className="sidebar-submenu"><button className={section === "users" ? "active" : ""} onClick={() => { setSection("users"); setMenuOpen(false); }}><Users size={17} /><span>Usuarios</span></button><button className={section === "customers" ? "active" : ""} onClick={() => { setSection("customers"); setMenuOpen(false); }}><Users size={17} /><span>Clientes</span></button><button className={section === "percentages" ? "active" : ""} onClick={() => { setSection("percentages"); setMenuOpen(false); }}><Percent size={17} /><span>Porcentajes</span></button><button className={section === "external-codes" ? "active" : ""} onClick={() => { setSection("external-codes"); setMenuOpen(false); }}><Hash size={17} /><span>Código Externo</span></button></div>}</div></nav><div className="sidebar-bottom"><div className="sidebar-user"><span>RE</span><div><strong>Administrador</strong><small>Sesión activa</small></div></div><button className="logout-button" onClick={logout}><LogOut size={18} />Cerrar sesión</button></div></aside><div className="sidebar-backdrop d-lg-none" hidden={!menuOpen} onClick={() => setMenuOpen(false)} /><button className="icon-button admin-mobile-menu d-lg-none" type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={21} /></button>
+    {section === "summary" ? <section className="admin-workspace"><AdminSalesDashboard /></section> : section === "products" ? <section className="admin-workspace"><ProductManager categories={categories} /></section> : section === "orders" ? <section className="admin-workspace"><AdminOrderManager /></section> : section === "credits" ? <section className="admin-workspace"><CreditManager /></section> : section === "users" ? <section className="admin-workspace"><UserManager /></section> : section === "customers" ? <section className="admin-workspace"><CustomerManager /></section> : section === "percentages" ? <section className="admin-workspace"><PercentageManager /></section> : section === "external-codes" ? <section className="admin-workspace"><ExternalCodeManager /></section> : <>
     <section className="admin-workspace"><header className="admin-topbar"><div className="topbar-title"><p className="eyebrow mb-1">CATALOGO</p><h1>Categorías</h1></div><div className="topbar-actions"><span className="topbar-date d-none d-sm-inline">Gestión de Categoría</span><button className="btn btn-primary" onClick={() => document.getElementById("category-name")?.focus()}><Plus size={18} />Nueva categoría</button></div></header>
       <div className="admin-content"><section className="admin-summary"><div><p className="eyebrow">INVENTARIO</p><h2>Organiza tu Categoría</h2><p>Las categorías agrupan los productos visibles para tus clientes.</p></div><div className="summary-metric"><span>{categories.length}</span><small>Categorías registradas</small></div></section>
         <section className="content-panel"><div className="panel-heading"><div><h2>Listado de categorías</h2><p>Administra la clasificación de tu catálogo.</p></div><span className="panel-count">{categories.length} registros</span></div><form className="category-form" onSubmit={createCategory}><div><label htmlFor="category-name" className="visually-hidden">Nombre de categoría</label><input id="category-name" className="form-control" placeholder="Escribe una nueva categoría" value={name} onChange={(event) => setName(event.target.value)} maxLength="120" required /></div><button className="btn btn-primary"><Plus size={18} />Agregar</button></form>

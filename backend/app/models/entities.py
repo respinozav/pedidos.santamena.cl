@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -171,3 +171,17 @@ class DetallePedido(AuditMixin, Base):
     cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     pedido: Mapped[Pedido] = relationship(back_populates="detalles")
+
+
+class CodigoExterno(AuditMixin, Base):
+    __tablename__ = "codigo_externo"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    codigo_externo: Mapped[int] = mapped_column(Integer, index=True)
+    producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("productos.id"), index=True)
+    porcentaje_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("porcentajes.id"), index=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    eliminado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    producto: Mapped[Producto] = relationship()
+    porcentaje: Mapped[Porcentaje] = relationship()

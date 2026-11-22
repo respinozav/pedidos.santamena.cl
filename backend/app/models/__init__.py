@@ -1,6 +1,7 @@
 from app.models.entities import (
     Categoria,
     Cliente,
+    CodigoExterno,
     DetallePedido,
     Direccion,
     Estado,
@@ -14,6 +15,7 @@ from app.models.entities import (
 __all__ = [
     "Categoria",
     "Cliente",
+    "CodigoExterno",
     "DetallePedido",
     "Direccion",
     "Estado",

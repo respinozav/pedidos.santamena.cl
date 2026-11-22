@@ -193,6 +193,10 @@ button, input { font: inherit; }
 .percentage-table-head, .percentage-row { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 82px 38px; }
 .percentage-table-head { background: #f8fafc; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .04rem; padding: .7rem 1rem; text-transform: uppercase; }
 .percentage-row { border-top: 1px solid var(--line); padding: .75rem 1rem; }
+.external-code-table { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.external-code-table-head, .external-code-row { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(90px, .9fr) minmax(130px, 1.8fr) minmax(80px, 1fr) 76px 38px; }
+.external-code-table-head { background: #f8fafc; color: var(--muted); font-size: .7rem; font-weight: 800; letter-spacing: .04rem; padding: .7rem 1rem; text-transform: uppercase; }
+.external-code-row { border-top: 1px solid var(--line); padding: .75rem 1rem; }
 .user-table-head, .user-row { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(0, 1.5fr) minmax(100px, .8fr) 82px 38px; }
 .customer-table-head, .customer-row { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.2fr) 42px 56px 76px 38px; }
 .customer-row { cursor: pointer; }
