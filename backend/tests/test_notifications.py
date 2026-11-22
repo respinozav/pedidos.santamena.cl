@@ -14,14 +14,24 @@ def test_order_pdf_contains_valid_header() -> None:
         detalles=[
             SimpleNamespace(
                 codigo_producto="PR-001",
+                codigo_externo=50123,
                 cantidad=2,
                 nombre_producto="Producto de prueba",
                 afecto=False,
                 precio_unitario=Decimal("1000"),
                 subtotal=Decimal("2000"),
-            )
+            ),
+            SimpleNamespace(
+                codigo_producto="PR-002",
+                codigo_externo=None,
+                cantidad=1,
+                nombre_producto="Producto sin codigo externo",
+                afecto=True,
+                precio_unitario=Decimal("1500"),
+                subtotal=Decimal("1500"),
+            ),
         ],
-        total=Decimal("2000"),
+        total=Decimal("3500"),
     )
 
     pdf = _order_pdf(order)

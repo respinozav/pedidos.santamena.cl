@@ -55,7 +55,8 @@ function BrandMark() {
 }
 
 function OrderProduct({ line }) {
-  return <span className="order-product"><strong>{line.nombre_producto}</strong><small>{line.codigo_producto}</small></span>;
+  const codeLabel = line.codigo_externo ? `Ext: ${line.codigo_externo} · ${line.codigo_producto}` : line.codigo_producto;
+  return <span className="order-product"><strong>{line.nombre_producto}</strong><small>{codeLabel}</small></span>;
 }
 
 function QuantitySelector({ cantidad, onCantidadChange, permiteMediaUnidad = false }) {

@@ -202,6 +202,7 @@ class DetallePedido(AuditMixin, Base):
     pedido_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pedidos.id"), index=True)
     producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("productos.id"))
     codigo_producto: Mapped[str] = mapped_column(String(50))
+    codigo_externo: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nombre_producto: Mapped[str] = mapped_column(String(180))
     afecto: Mapped[bool] = mapped_column(Boolean, default=True)
     precio_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 2))

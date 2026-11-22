@@ -250,6 +250,7 @@ class OrderCreate(BaseModel):
 class OrderLineOutput(ORMModel):
     producto_id: UUID
     codigo_producto: str
+    codigo_externo: int | None = None
     nombre_producto: str
     afecto: bool
     precio_unitario: Decimal

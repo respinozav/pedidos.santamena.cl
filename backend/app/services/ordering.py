@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.entities import Cliente, Credito, DetallePedido, Direccion, Estado, Marca, Pedido, Producto
+from app.models.entities import Cliente, CodigoExterno, Credito, DetallePedido, Direccion, Estado, Marca, Pedido, Producto
 from app.repositories.base import Repository
 from app.schemas.dto import OrderCreate
 from app.services.notifications import _order_pdf, notify_administrators_of_order
@@ -33,6 +33,39 @@ class OrderService:
         if len(products) != len(set(product_ids)):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Uno o mas productos no existen")
 
+        # Resolver codigos externos de productos segun porcentaje del cliente (con fallback a cualquier codigo activo)
+        ext_codes: dict[UUID, int] = {}
+        if customer.porcentaje_id:
+            matching_ext = list(
+                self.database.scalars(
+                    select(CodigoExterno).where(
+                        CodigoExterno.producto_id.in_(product_ids),
+                        CodigoExterno.porcentaje_id == customer.porcentaje_id,
+                        CodigoExterno.activo.is_(True),
+                        CodigoExterno.eliminado_at.is_(None),
+                    )
+                )
+            )
+            for item in matching_ext:
+                ext_codes[item.producto_id] = item.codigo_externo
+
+        missing_pids = [pid for pid in product_ids if pid not in ext_codes]
+        if missing_pids:
+            fallback_ext = list(
+                self.database.scalars(
+                    select(CodigoExterno)
+                    .where(
+                        CodigoExterno.producto_id.in_(missing_pids),
+                        CodigoExterno.activo.is_(True),
+                        CodigoExterno.eliminado_at.is_(None),
+                    )
+                    .order_by(CodigoExterno.created_at.asc())
+                )
+            )
+            for item in fallback_ext:
+                if item.producto_id not in ext_codes:
+                    ext_codes[item.producto_id] = item.codigo_externo
+
         details: list[DetallePedido] = []
         subtotal = Decimal("0")
         for line in payload.productos:
@@ -43,7 +76,19 @@ class OrderService:
             line_total = applied_price * line.cantidad
             product.cantidad -= line.cantidad
             subtotal += line_total
-            details.append(DetallePedido(producto_id=product.id, codigo_producto=product.codigo, nombre_producto=product.nombre, afecto=product.afecto, precio_unitario=applied_price, cantidad=line.cantidad, subtotal=line_total))
+            ext_code = ext_codes.get(product.id)
+            details.append(
+                DetallePedido(
+                    producto_id=product.id,
+                    codigo_producto=product.codigo,
+                    codigo_externo=ext_code,
+                    nombre_producto=product.nombre,
+                    afecto=product.afecto,
+                    precio_unitario=applied_price,
+                    cantidad=line.cantidad,
+                    subtotal=line_total,
+                )
+            )
 
         initial_state = self.database.scalar(select(Estado).where(Estado.nombre == "Pedido", Estado.activo.is_(True)))
         if not initial_state:

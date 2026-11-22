@@ -73,18 +73,29 @@ def _orders_pdf(orders: list[Pedido]) -> bytes:
             f"<b>Dirección de despacho:</b> {html.escape(address or 'Sin dirección registrada')}",
         ))
         story.extend([Paragraph(customer_details, styles["Details"]), Spacer(1, 7 * mm)])
-        detail_widths = [26 * mm, 74 * mm, 18 * mm, 26 * mm, 30 * mm]
-        rows = [["Código", "Producto", "Cant.", "Precio", "Subtotal"]]
+        detail_widths = [24 * mm, 20 * mm, 56 * mm, 18 * mm, 26 * mm, 30 * mm]
+        rows = [["Cód. Ext.", "Cód. Int.", "Producto", "Cant.", "Precio", "Subtotal"]]
         for detail in order.detalles:
-            rows.append([html.escape(detail.codigo_producto), Paragraph(f"<b>{html.escape(detail.nombre_producto)}</b>", styles["Details"]), _quantity(detail.cantidad), _currency(detail.precio_unitario), _currency(detail.subtotal)])
+            ext_val = getattr(detail, "codigo_externo", None)
+            ext_str = str(ext_val) if ext_val is not None else "-"
+            int_code = getattr(detail, "codigo_producto", "") or "-"
+            rows.append([
+                ext_str,
+                html.escape(int_code),
+                Paragraph(f"<b>{html.escape(detail.nombre_producto)}</b>", styles["Details"]),
+                _quantity(detail.cantidad),
+                _currency(detail.precio_unitario),
+                _currency(detail.subtotal),
+            ])
         details = Table(rows, colWidths=detail_widths, repeatRows=1)
         details.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF4FF")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#334E68")),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("ALIGN", (2, 0), (2, -1), "CENTER"),
-            ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
+            ("ALIGN", (0, 0), (1, -1), "CENTER"),
+            ("ALIGN", (3, 0), (3, -1), "CENTER"),
+            ("ALIGN", (4, 0), (-1, -1), "RIGHT"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
@@ -94,16 +105,16 @@ def _orders_pdf(orders: list[Pedido]) -> bytes:
         ]))
         tax_totals = _tax_totals(order.detalles)
         summary = Table([
-            ["Exento", "", _quantity(tax_totals[False][0]), _currency(tax_totals[False][1]), ""],
-            ["Afecto", "", _quantity(tax_totals[True][0]), _currency(tax_totals[True][1]), ""],
+            ["Exento", "", "", _quantity(tax_totals[False][0]), _currency(tax_totals[False][1]), ""],
+            ["Afecto", "", "", _quantity(tax_totals[True][0]), _currency(tax_totals[True][1]), ""],
         ], colWidths=detail_widths)
         summary.setStyle(TableStyle([
-            ("SPAN", (0, 0), (1, 0)),
-            ("SPAN", (0, 1), (1, 1)),
+            ("SPAN", (0, 0), (2, 0)),
+            ("SPAN", (0, 1), (2, 1)),
             ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("ALIGN", (2, 0), (2, -1), "CENTER"),
-            ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+            ("ALIGN", (3, 0), (3, -1), "CENTER"),
+            ("ALIGN", (4, 0), (4, -1), "RIGHT"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D9E2EC")),
             ("LEFTPADDING", (0, 0), (-1, -1), 4),
@@ -143,7 +154,7 @@ def _build_order_message(
     customer_phone = order.cliente.celular or "Sin teléfono"
     address = ", ".join(part for part in (order.direccion.direccion, order.direccion.comuna) if part) or "Sin dirección"
     detail_rows = "".join(
-        f"<tr><td style='padding:7px;border-top:1px solid #d9e2ec'><strong>{html.escape(detail.nombre_producto)}</strong><br><span style='color:#667085;font-size:12px'>{html.escape(detail.codigo_producto)}</span></td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:center'>{_quantity(detail.cantidad)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.precio_unitario)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.subtotal)}</td></tr>"
+        f"<tr><td style='padding:7px;border-top:1px solid #d9e2ec'><strong>{html.escape(detail.nombre_producto)}</strong><br><span style='color:#667085;font-size:12px'>{(f'Cód. Ext: {detail.codigo_externo} · ' if getattr(detail, 'codigo_externo', None) is not None else '')}Cód. Int: {html.escape(detail.codigo_producto)}</span></td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:center'>{_quantity(detail.cantidad)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.precio_unitario)}</td><td style='padding:7px;border-top:1px solid #d9e2ec;text-align:right'>{_currency(detail.subtotal)}</td></tr>"
         for detail in order.detalles
     )
     message = EmailMessage()
