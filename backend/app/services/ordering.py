@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.entities import Cliente, CodigoExterno, Credito, DetallePedido, Direccion, Estado, Marca, Pedido, Producto
+from app.models.entities import Cliente, CodigoExterno, Credito, DetallePedido, Direccion, Estado, Marca, Pedido, Porcentaje, Producto
 from app.repositories.base import Repository
 from app.schemas.dto import OrderCreate
 from app.services.notifications import _order_pdf, notify_administrators_of_order
@@ -33,7 +33,47 @@ class OrderService:
         if len(products) != len(set(product_ids)):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Uno o mas productos no existen")
 
-        # Resolver codigos externos de productos segun porcentaje del cliente (con fallback a cualquier codigo activo)
+        # Obtener id de porcentaje 0% y porcentajes permitidos para el cliente
+        zero_pct_id = self.database.scalar(
+            select(Porcentaje.id).where(
+                Porcentaje.valor == Decimal("0.00"),
+                Porcentaje.eliminado_at.is_(None),
+            )
+        )
+        allowed_pct_ids: set[UUID] = set()
+        if zero_pct_id:
+            allowed_pct_ids.add(zero_pct_id)
+        if customer.porcentaje_id:
+            allowed_pct_ids.add(customer.porcentaje_id)
+        elif customer.porcentaje is not None:
+            matching_pct = self.database.scalar(
+                select(Porcentaje.id).where(
+                    Porcentaje.valor == customer.porcentaje,
+                    Porcentaje.eliminado_at.is_(None),
+                )
+            )
+            if matching_pct:
+                allowed_pct_ids.add(matching_pct)
+
+        # Validar que ningun producto este restringido a otro porcentaje
+        for pid in product_ids:
+            prod_pcts = set(
+                self.database.scalars(
+                    select(CodigoExterno.porcentaje_id).where(
+                        CodigoExterno.producto_id == pid,
+                        CodigoExterno.activo.is_(True),
+                        CodigoExterno.eliminado_at.is_(None),
+                    )
+                )
+            )
+            if prod_pcts and not (prod_pcts & allowed_pct_ids):
+                product = products[pid]
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    f"El producto '{product.nombre}' no está disponible para su porcentaje asignado",
+                )
+
+        # Resolver codigos externos de productos segun porcentaje del cliente y fallback a 0%
         ext_codes: dict[UUID, int] = {}
         if customer.porcentaje_id:
             matching_ext = list(
@@ -50,12 +90,27 @@ class OrderService:
                 ext_codes[item.producto_id] = item.codigo_externo
 
         missing_pids = [pid for pid in product_ids if pid not in ext_codes]
-        if missing_pids:
+        if missing_pids and zero_pct_id:
+            zero_ext = list(
+                self.database.scalars(
+                    select(CodigoExterno).where(
+                        CodigoExterno.producto_id.in_(missing_pids),
+                        CodigoExterno.porcentaje_id == zero_pct_id,
+                        CodigoExterno.activo.is_(True),
+                        CodigoExterno.eliminado_at.is_(None),
+                    )
+                )
+            )
+            for item in zero_ext:
+                ext_codes[item.producto_id] = item.codigo_externo
+
+        still_missing = [pid for pid in product_ids if pid not in ext_codes]
+        if still_missing:
             fallback_ext = list(
                 self.database.scalars(
                     select(CodigoExterno)
                     .where(
-                        CodigoExterno.producto_id.in_(missing_pids),
+                        CodigoExterno.producto_id.in_(still_missing),
                         CodigoExterno.activo.is_(True),
                         CodigoExterno.eliminado_at.is_(None),
                     )

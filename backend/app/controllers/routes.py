@@ -266,13 +266,51 @@ def list_products(
         statement = statement.where(Producto.marca_id == brand_id)
     elif category_id:
         statement = statement.join(Producto.marca).where(Marca.categoria_id == category_id)
-    if search:
+    search_text = search if isinstance(search, str) else getattr(search, "default", None)
+    if search_text:
         statement = statement.where(
-            Producto.nombre.ilike(f"%{search}%") | Producto.codigointerno.ilike(f"%{search}%")
+            Producto.nombre.ilike(f"%{search_text}%") | Producto.codigointerno.ilike(f"%{search_text}%")
         )
     customer = database.get(Cliente, customer_id) if customer_id else None
+    if customer_id:
+        allowed_pct_ids: set[UUID] = set()
+        zero_pct_id = database.scalar(
+            select(Porcentaje.id).where(
+                Porcentaje.valor == Decimal("0.00"),
+                Porcentaje.eliminado_at.is_(None),
+            )
+        )
+        if zero_pct_id:
+            allowed_pct_ids.add(zero_pct_id)
+
+        if customer:
+            if customer.porcentaje_id:
+                allowed_pct_ids.add(customer.porcentaje_id)
+            elif customer.porcentaje is not None:
+                cust_pct = database.scalar(
+                    select(Porcentaje.id).where(
+                        Porcentaje.valor == customer.porcentaje,
+                        Porcentaje.eliminado_at.is_(None),
+                    )
+                )
+                if cust_pct:
+                    allowed_pct_ids.add(cust_pct)
+
+        allowed_subquery = (
+            select(CodigoExterno.producto_id)
+            .where(
+                CodigoExterno.porcentaje_id.in_(allowed_pct_ids),
+                CodigoExterno.activo.is_(True),
+                CodigoExterno.eliminado_at.is_(None),
+            )
+            .distinct()
+        )
+        statement = statement.where(Producto.id.in_(allowed_subquery))
+
+    page_num = page if isinstance(page, int) else int(getattr(page, "default", 1))
+    size_num = page_size if isinstance(page_size, int) else int(getattr(page_size, "default", 10))
     total = database.scalar(select(func.count()).select_from(statement.subquery())) or 0
-    products = database.scalars(statement.order_by(Producto.nombre).offset((page - 1) * page_size).limit(page_size))
+    products = database.scalars(statement.order_by(Producto.nombre).offset((page_num - 1) * size_num).limit(size_num))
     return ProductPage(
         items=[
             ProductOutput.model_validate(product, from_attributes=True).model_copy(
@@ -281,8 +319,8 @@ def list_products(
             for product in products
         ],
         total=total,
-        page=page,
-        page_size=page_size,
+        page=page_num,
+        page_size=size_num,
     )
 
 
@@ -308,9 +346,10 @@ def list_admin_products(
         statement = statement.where(Producto.marca_id == brand_id)
     elif category_id:
         statement = statement.join(Producto.marca).where(Marca.categoria_id == category_id)
-    if search:
+    search_text = search if isinstance(search, str) else getattr(search, "default", None)
+    if search_text:
         statement = statement.where(
-            Producto.nombre.ilike(f"%{search}%") | Producto.codigointerno.ilike(f"%{search}%")
+            Producto.nombre.ilike(f"%{search_text}%") | Producto.codigointerno.ilike(f"%{search_text}%")
         )
     if stock_lt is not None:
         statement = statement.where(Producto.cantidad < stock_lt)
